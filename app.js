@@ -530,7 +530,7 @@
         }).join("\n")}\nJangan generate shot yang karakternya (utama maupun pendukung) belum punya character sheet sampai saya konfirmasi.\n\nPrompt video per shot:\n${ep.shots.map((s) => `SHOT ${s.id}: ${videoPrompt(s)}`).join("\n\n")}`;
       }
       case "edit":
-        return `/short-drama-edit\nSusun cut list dan render ${id} "${ep.title}" (${S.project.aspect}, target ±${S.project.epSeconds} detik). Subtitle diambil kata per kata dari naskah. Teks layar ([TEKS]) jadi overlay di zona aman. Tutup dengan kartu CTA "${S.project.cta}". Tulis alasan setiap titik potong. Normalisasi loudness untuk platform ${S.project.platform}.\n\nNaskah:\n${ep.script}\n\nShot:\n${shotsText(ep)}`;
+        return `Pakai skill OpenFilm (npx skills add openfilm/openfilm; manualnya: npx -y openfilm@latest).\nEdit ${id} "${ep.title}" di folder ${id}-openfilm (hasil Ekspor → Editing di SABRINACTION: film.html 1080×1920, ${S.project.aspect}, target ±${S.project.epSeconds} detik). Rapikan titik potong dan tulis alasannya. Subtitle tetap kata per kata dari naskah (captions/subtitle.vtt). Teks layar ([TEKS]) jadi page overlay di zona aman. Pertahankan kartu penutup "${S.project.cta}". Tambahkan voice-over, musik, dan SFX sebagai clip audio bila filenya ada. Jangan mengubah track yang locked. Cek dengan openfilm look, lalu render dengan target loudness untuk platform ${S.project.platform}. Jangan memakai layanan generate berbayar tanpa konfirmasi saya.\n\nNaskah:\n${ep.script}\n\nShot:\n${shotsText(ep)}`;
       case "review": {
         const r = reviewChecks(ep);
         return `/short-drama-review\nReview ${id} "${ep.title}" — naskah, storyboard, dan prompt. Fokus: kekuatan hook 3 detik, kejelasan modus, konsistensi visual ${S.sabrina.name}, kesinambungan antar shot (arah pandang, posisi, properti), dan kepatuhan pesan keamanan perbankan.\n\n${head}\n\nTemuan otomatis dashboard:\n${r.auto.filter((c) => c.level !== "ok").map((c) => `- ${c.text}`).join("\n") || "- (tidak ada)"}\n\nNaskah:\n${ep.script}\n\nShot:\n${shotsText(ep)}\n\nKembalikan daftar masalah: lokasi · bukti · dampak · usulan perbaikan. Jangan mengubah dokumen langsung.`;
@@ -1079,7 +1079,7 @@
   function viewProduksi(ep) {
     const p = prodStats(ep);
     let html = epHead(ep, "Produksi", "Status generate per shot. Klik status untuk mengganti: belum → antre → jadi → tidak perlu.",
-      `${agentBtn("produce", "Perintah pratinjau batch", "primary")}${agentBtn("edit", "Perintah edit & render")}`);
+      `${agentBtn("produce", "Perintah pratinjau batch", "primary")}${agentBtn("edit", "Perintah edit & render")}<button class="btn" data-act="export-openfilm" data-ep="${ep.id}" ${ep.shots.length ? "" : "disabled"} title="ZIP film.html untuk OpenFilm">⇩ Paket OpenFilm</button>`);
     if (!ep.shots.length) return html + `<div class="card empty"><h3>Belum ada shot</h3><a href="#/ep/${ep.id}/storyboard">Buat storyboard dulu →</a></div>`;
     const by = (k) => { let d = 0, q = 0, t = 0; ep.shots.forEach((s) => { const v = s.prod[k] || "belum"; if (v === "-") return; t++; if (v === "jadi") d++; if (v === "antre") q++; }); return { d, q, t }; };
     html += `<div class="grid g4">
@@ -1139,15 +1139,174 @@
       </div>
       <div class="card"><div class="card-h"><h2>Dokumen untuk agen</h2></div>
         <p class="muted" style="margin-top:0">Simpan di folder proyek agar <code>/short-drama-*</code> bisa membaca: <code>Naskah.md</code>, <code>Visual-Setting.md</code>, <code>Storyboard.md</code>, <code>Prompt-Video.md</code>.</p>
+        <h3 style="margin-bottom:6px">Editing & render: OpenFilm</h3>
+        <p class="muted" style="margin:0">Kolom <b>Editing</b> mengunduh ZIP per episode: <code>film.html</code> vertikal 1080×1920, subtitle dari dialog, video / first frame / KV tiap shot, dan kartu penutup. Ekstrak, lalu jalankan <code>npx -y openfilm@latest open</code> untuk mengedit di Studio atau <code>… render</code> untuk MP4. Timeline bisa diekspor lagi ke DaVinci Resolve / Premiere dari Studio.</p>
       </div>
     </div>
-    <div class="card section table-wrap"><table class="matrix"><thead><tr><th>Episode</th><th>Naskah</th><th>Storyboard</th><th>Prompt video</th><th>Semua</th></tr></thead><tbody>
+    <div class="card section table-wrap"><table class="matrix"><thead><tr><th>Episode</th><th>Naskah</th><th>Storyboard</th><th>Prompt video</th><th>Semua</th><th>Editing (OpenFilm)</th></tr></thead><tbody>
       ${S.episodes.map((e) => `<tr><td><b>${e.id}</b> ${esc(e.title)}</td>
         <td><button class="btn sm" data-act="export-doc" data-ep="${e.id}" data-doc="naskah" ${e.script ? "" : "disabled"}>⇩ .md</button></td>
         <td><button class="btn sm" data-act="export-doc" data-ep="${e.id}" data-doc="storyboard" ${e.shots.length ? "" : "disabled"}>⇩ .md</button></td>
         <td><button class="btn sm" data-act="export-doc" data-ep="${e.id}" data-doc="prompt" ${e.shots.length ? "" : "disabled"}>⇩ .md</button></td>
-        <td><button class="btn sm primary" data-act="export-doc" data-ep="${e.id}" data-doc="all">⇩ Paket .md</button></td></tr>`).join("")}
+        <td><button class="btn sm primary" data-act="export-doc" data-ep="${e.id}" data-doc="all">⇩ Paket .md</button></td>
+        <td><button class="btn sm" data-act="export-openfilm" data-ep="${e.id}" ${e.shots.length ? "" : "disabled"} title="ZIP berisi film.html, subtitle, media shot, dan kartu penutup">⇩ film.html (.zip)</button></td></tr>`).join("")}
     </tbody></table></div>`;
+  }
+
+  // ---------- ekspor OpenFilm (film.html, https://github.com/openfilm/openfilm) ----------
+  // satu ZIP per episode: film.html 1080×1920 + subtitle WebVTT + media shot + kartu penutup.
+  // Shot tanpa media memakai KV adegan (zoom pelan) atau kartu slate, supaya film tetap bisa diputar & di-render.
+  const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = (u8) => { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  function makeZip(files) { // files: [{ name, data: Uint8Array | string }], metode simpan (tanpa kompresi)
+    const enc = new TextEncoder(); const parts = []; const central = []; let off = 0;
+    const d = new Date(); const dt = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(), tm = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    for (const f of files) {
+      const name = enc.encode(f.name); const data = typeof f.data === "string" ? enc.encode(f.data) : f.data; const crc = crc32(data);
+      const h = new DataView(new ArrayBuffer(30));
+      [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [8, 0, 2], [10, tm, 2], [12, dt, 2], [14, crc, 4], [18, data.length, 4], [22, data.length, 4], [26, name.length, 2], [28, 0, 2]].forEach(([o, v, n]) => n === 4 ? h.setUint32(o, v, true) : h.setUint16(o, v, true));
+      const c = new DataView(new ArrayBuffer(46));
+      [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [10, 0, 2], [12, tm, 2], [14, dt, 2], [16, crc, 4], [20, data.length, 4], [24, data.length, 4], [28, name.length, 2], [30, 0, 2], [32, 0, 2], [34, 0, 2], [36, 0, 2], [38, 0, 4], [42, off, 4]].forEach(([o, v, n]) => n === 4 ? c.setUint32(o, v, true) : c.setUint16(o, v, true));
+      parts.push(new Uint8Array(h.buffer), name, data); central.push(new Uint8Array(c.buffer), name);
+      off += 30 + name.length + data.length;
+    }
+    const csize = central.reduce((a, b) => a + b.length, 0); const e = new DataView(new ArrayBuffer(22));
+    [[0, 0x06054b50, 4], [8, files.length, 2], [10, files.length, 2], [12, csize, 4], [16, off, 4]].forEach(([o, v, n]) => n === 4 ? e.setUint32(o, v, true) : e.setUint16(o, v, true));
+    return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: "application/zip" });
+  }
+  const vttTime = (t) => { const ms = Math.round(t * 1000); const h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60; return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(ms % 1000).padStart(3, "0")}`; };
+  const vttEsc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/-->/g, "→");
+  const t3 = (n) => Math.round(n * 1000) / 1000;
+  const extOf = (type, name) => (String(name).match(/\.(\w{2,4})$/) || [])[1] || ({ "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov", "image/png": "png", "image/webp": "webp" }[type] || (/^video/.test(type) ? "mp4" : "jpg"));
+  function ofCard({ kicker = "", title = "", sub = "", note = "" }) {
+    return `<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><style>
+html,body{margin:0;width:100%;height:100%;background:#0f0f10;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.w{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 9vw}
+.k{font-size:3.6vw;letter-spacing:.35em;color:#ff5b24;margin-bottom:2.5vh;text-transform:uppercase}
+.j{font-size:8.5vw;font-weight:700;line-height:1.12}
+.s{font-size:3.8vw;opacity:.75;margin-top:2.5vh;line-height:1.45}
+.n{position:absolute;left:6vw;right:6vw;bottom:6vh;font-size:2.8vw;opacity:.5;line-height:1.4}
+</style></head><body><div class="w"><div class="k">${esc(kicker)}</div><div class="j">${esc(title)}</div><div class="s">${esc(sub)}</div></div><div class="n">${esc(note)}</div>
+<script>
+const w = document.querySelector(".w");
+window.film = { frame(t) { const o = Math.min(1, t / 0.4); w.style.opacity = o; w.style.translate = "0 " + (1 - o) * 30 + "px"; } };
+if (!window.filmHost) { const t0 = performance.now(); const l = () => { film.frame((performance.now() - t0) / 1000); requestAnimationFrame(l); }; l(); }
+</script></body></html>
+`;
+  }
+  async function fetchBytes(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return new Uint8Array(await r.arrayBuffer()); }
+  async function buildOpenFilm(ep) {
+    const files = []; const clips = []; const subs = []; const slates = []; const kvDone = new Map(); const warn = [];
+    const W = 1080, H = 1920; let t = 0, nVid = 0, nImg = 0, nKv = 0, nSlate = 0;
+    const box = `left: 0px; top: 0px; width: ${W}px; height: ${H}px`;
+    for (const s of ep.shots) {
+      const dur = t3(Math.max(0.5, +s.dur || 0)); const at = t3(t); const id = `shot-${s.id}`;
+      const vid = media(ep, s, "vid"), img = media(ep, s, "img");
+      let clip = "";
+      try {
+        if (vid) { const f = `media/${ep.id}-${s.id}.${extOf(vid.type, vid.name)}`; files.push({ name: f, data: await fetchBytes(vid.url) }); clip = `<video id="${id}" src="${f}#t=0,${dur}" at="${at}" class="shot" style="${box}"></video>`; nVid++; }
+        else if (img) { const f = `media/${ep.id}-${s.id}.${extOf(img.type, img.name)}`; files.push({ name: f, data: await fetchBytes(img.url) }); clip = `<img id="${id}" src="${f}#t=0,${dur}" at="${at}" class="shot still" style="${box}">`; nImg++; }
+      } catch (e) { warn.push(`media shot ${s.id} tidak terbaca`); }
+      if (!clip) {
+        const sh = sheetsOf(kvId(ep, s.scene)).find((x) => shMedia(x));
+        let f = sh ? kvDone.get(sh.key) : null;
+        if (sh && f === undefined) {
+          const m = shMedia(sh); f = `media/kv-${s.scene}-${kvDone.size + 1}.${extOf(m.type || "", m.name || m.url)}`;
+          try { files.push({ name: f, data: await fetchBytes(m.url) }); } catch (e) { f = null; warn.push(`KV ${s.scene} tidak terbaca`); }
+          kvDone.set(sh.key, f);
+        }
+        if (f) { clip = `<img id="${id}" src="${f}#t=0,${dur}" at="${at}" class="shot kv" style="${box}">`; nKv++; }
+        else {
+          const f2 = `pages/${id}.html`;
+          files.push({ name: f2, data: ofCard({ kicker: `${ep.id} · ${s.scene} · shot ${s.id}`, title: s.title || `Shot ${s.id}`, sub: [s.scale, s.move].filter(Boolean).join(" · "), note: s.action || "" }) });
+          clip = `<iframe id="${id}" src="${f2}#t=0,${dur}" at="${at}"></iframe>`; nSlate++;
+        }
+      }
+      clips.push(`  ${clip}`);
+      slates.push(`${vttTime(at)} --> ${vttTime(at + dur)} line:4% position:50% align:center\n${vttEsc(`${s.id} · ${s.title || ""}`)}`);
+      const lines = String(s.dialog || "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
+      // potong kalimat panjang jadi subtitle ≤ ±70 karakter (2 baris di 1080 px), waktu sebanding panjang teks
+      const pieces = [];
+      lines.forEach((ln) => {
+        const m = ln.match(DLG_RE); const who = m ? m[1].trim() : ""; const vo = !!(m && /VO|OS/i.test(m[2] || "")); const text = m ? m[3] : ln;
+        let cur = "";
+        (text.match(/[^.!?…]+[.!?…]*\s*/g) || [text]).forEach((sent) => {
+          sent.split(/(?<=,)\s+/).forEach((part) => {
+            if (cur && (cur + " " + part).trim().length > 70) { pieces.push({ who, vo, text: cur.trim() }); cur = ""; }
+            cur = (cur + " " + part).trim();
+          });
+        });
+        if (cur) pieces.push({ who, vo, text: cur.trim() });
+      });
+      const chars = pieces.reduce((n, p) => n + p.text.length, 0) || 1; let acc = 0;
+      pieces.forEach((p) => {
+        const a = at + (dur * acc) / chars + 0.08; acc += p.text.length; const b = at + (dur * acc) / chars - 0.08;
+        subs.push(`${vttTime(a)} --> ${vttTime(Math.max(a + 0.4, b))} line:76% position:50% align:center size:88%\n${p.who ? `<v ${vttEsc(p.who)}>` : ""}${p.vo ? `<i>${vttEsc(p.text)}</i>` : vttEsc(p.text)}`);
+      });
+      t += dur;
+    }
+    const endLen = 3; const cta = String(S.project.cta || "").split(/\s+[—–-]\s+/);
+    files.push({ name: "pages/penutup.html", data: ofCard({ kicker: S.sabrina.name || "Sabrina", title: cta[0] || S.project.title, sub: cta.slice(1).join(" — ") || `${ep.id} · ${ep.title}` }) });
+    clips.push(`  <iframe id="penutup" src="pages/penutup.html#t=0,${endLen}" at="${t3(t)}"></iframe>`);
+    const total = t3(t + endLen);
+    const css = "STYLE\n::cue { font-family: Arial, Helvetica, sans-serif; font-size: 52px; font-weight: 700; color: #fff; background: transparent; text-shadow: 0 0 8px #000, 0 2px 4px #000, 0 0 2px #000; }\n::cue(i) { color: #ffe2b8; }\n";
+    files.push({ name: "captions/subtitle.vtt", data: `WEBVTT\n\n${css}\n${subs.join("\n\n")}\n` });
+    files.push({ name: "captions/nomor-shot.vtt", data: `WEBVTT\n\nSTYLE\n::cue { font-family: monospace; font-size: 30px; color: #fff; background: rgba(255, 91, 36, .85); }\n\n${slates.join("\n\n")}\n` });
+    const film = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=${W}, height=${H}">
+<title>${esc(`${S.project.title} ${ep.id} · ${ep.title}`)}</title>
+<style>
+  .shot { object-fit: cover; }
+  .kv { animation: kv-zoom var(--clip-length) linear both; }
+  @keyframes kv-zoom { from { scale: 1; } to { scale: 1.08; } }
+</style>
+</head>
+<body>
+<section title="Nomor shot (sembunyikan sebelum render final)" hidden>
+  <track kind="captions" src="captions/nomor-shot.vtt" srclang="id" label="Nomor shot">
+</section>
+<section title="Subtitle">
+  <track kind="subtitles" src="captions/subtitle.vtt" srclang="id" label="Indonesia">
+</section>
+<section title="Gambar">
+${clips.join("\n")}
+</section>
+</body>
+</html>
+`;
+    files.unshift({ name: "film.html", data: film });
+    const dir = `${ep.id}-openfilm`;
+    files.push({ name: "BACA-SAYA.txt", data: `${S.project.title} — ${ep.id} "${ep.title}"
+Diekspor dari SABRINACTION untuk OpenFilm (https://github.com/openfilm/openfilm).
+
+Durasi ${fmtSec(total)} (${ep.shots.length} shot + kartu penutup ${endLen} dtk), 1080×1920.
+Isi gambar: ${nVid} video · ${nImg} first frame · ${nKv} KV adegan (zoom pelan) · ${nSlate} kartu slate (belum ada media).
+${warn.length ? `Peringatan: ${warn.join("; ")}\n` : ""}
+Butuh Node 22.2+ dan ffmpeg. Ekstrak ZIP ini, lalu di dalam folder ${dir}:
+
+  npx -y openfilm@latest look      cek film & lihat lembar kontak
+  npx -y openfilm@latest open      buka di OpenFilm Studio (edit potongan, subtitle, warna)
+  npx -y openfilm@latest render    render MP4 di samping film.html
+
+Track "Nomor shot" disembunyikan (hidden). Tampilkan di Studio untuk review, sembunyikan lagi sebelum render final.
+Subtitle diambil dari kolom dialog tiap shot. Kalau media shot diperbarui di dashboard, ekspor ulang — perubahan manual
+di Studio tersimpan di film.html, jadi salin dulu film.html lama bila perlu.
+` });
+    return { blob: makeZip(files.map((f) => ({ ...f, name: `${dir}/${f.name}` }))), name: `${dir}.zip`, stats: { nVid, nImg, nKv, nSlate, total, warn } };
+  }
+  async function exportOpenFilm(ep) {
+    if (!ep || !ep.shots.length) return toast("Episode ini belum punya shot");
+    toast("Menyiapkan paket OpenFilm…");
+    try {
+      const r = await buildOpenFilm(ep);
+      const a = document.createElement("a"); a.href = URL.createObjectURL(r.blob); a.download = r.name; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      const st = r.stats; toast(`${r.name} · ${fmtSec(st.total)} · ${st.nVid} video, ${st.nImg} gambar, ${st.nKv} KV, ${st.nSlate} slate${st.warn.length ? " · ada peringatan" : ""}`);
+    } catch (e) { toast("Gagal ekspor OpenFilm: " + e.message); }
   }
 
   // ---------- markdown export ----------
@@ -1465,6 +1624,7 @@
         if (prevProject && confirm(`Kembalikan "${prevProject.project.title}"? Proyek aktif sekarang bertukar posisi jadi proyek sebelumnya.`)) switchProject(prevProject, prevProject.project.title);
         break;
       case "export-bible": download("Character-Bible.md", mdBible()); break;
+      case "export-openfilm": exportOpenFilm(epById(el.dataset.ep)); break;
       case "export-doc": {
         const e2 = epById(el.dataset.ep); const doc = el.dataset.doc;
         const names = { naskah: "Naskah", storyboard: "Storyboard", prompt: "Prompt-Video", all: "Paket" };

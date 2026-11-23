@@ -20,9 +20,9 @@ Lalu buka http://127.0.0.1:5173. Bisa juga langsung buka `index.html` di browser
 | Naskah | Editor Markdown + pratinjau naskah | `/short-drama-write` |
 | Storyboard | Mode editor (inspector shot, preview 9:16, timeline teks/video/suara/SFX — klik klip, seret tepi kanan untuk durasi, spasi untuk putar, ←/→ pindah shot), plus mode kartu & daftar dengan bar ritme dan impor JSON | `/short-drama-storyboard` |
 | Prompt | Prompt first-frame & video, disusun otomatis | `/short-drama-video-prompts` |
-| Produksi | Status gambar/video/suara per shot | `/short-drama-produce`, `/short-drama-edit` |
+| Produksi | Status gambar/video/suara per shot, unduh paket OpenFilm | `/short-drama-produce`, skill OpenFilm |
 | Review | Cek otomatis + checklist kepatuhan brand | `/short-drama-review` |
-| Ekspor | Markdown per episode, cadangan/impor JSON | — |
+| Ekspor | Markdown per episode, paket editing OpenFilm, cadangan/impor JSON | — |
 
 Tombol **⧉ Perintah** menyalin permintaan lengkap (brief seri, batasan Sabrina, beat, naskah, shot) untuk ditempel ke Claude Code atau Codex yang sudah memasang skill-nya:
 
@@ -51,3 +51,24 @@ Di **Ekspor & proyek** ada dua proyek yang bisa dimuat (proyek aktif disimpan ot
 ## KV per adegan
 
 Di Storyboard ada panel **KV per adegan** (dan grup *KV adegan* di inspector). Unggah atau seret key visual per scene; KV dipakai sebagai latar preview selama shot belum punya first frame, ikut tampil di naskah dan timeline, dan disebut sebagai referensi di perintah storyboard, prompt video, dan produksi.
+
+## Editing & render: OpenFilm
+
+Editing memakai [OpenFilm](https://github.com/openfilm/openfilm) (MIT, gratis). Di **Ekspor** (kolom *Editing*) atau **Produksi** → **⇩ Paket OpenFilm**, dashboard mengunduh `EP00X-openfilm.zip`:
+
+- `film.html` vertikal 1080×1920. Satu clip per shot sesuai urutan dan durasi storyboard, ditutup kartu CTA 3 detik.
+- Gambar tiap shot: video bila sudah diunggah, kalau tidak first frame, kalau tidak KV adegan (zoom pelan). Shot tanpa media apa pun jadi kartu slate.
+- `captions/subtitle.vtt` dari kolom dialog. Kalimat panjang dipecah jadi maksimal 2 baris, VO/OS ditulis miring.
+- Track `Nomor shot`, tersembunyi, untuk review di Studio.
+
+Butuh Node 22.2+ dan ffmpeg. Ekstrak ZIP, lalu di folder hasil ekstrak:
+
+```powershell
+npx -y openfilm@latest open
+```
+
+```powershell
+npx -y openfilm@latest render
+```
+
+`open` membuka Studio untuk mengedit potongan, subtitle, dan warna; dari Studio timeline bisa diekspor ke DaVinci Resolve atau Premiere. `render` menulis MP4 di samping `film.html`. Tombol **⧉ Perintah edit & render** di Produksi menyalin instruksi untuk agen yang sudah memasang skill-nya (`npx skills add openfilm/openfilm`).
