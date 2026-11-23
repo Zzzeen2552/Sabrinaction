@@ -1012,14 +1012,30 @@
     html += ep.shots.map((s) => {
       const i = ep.shots.indexOf(s);
       const missing = [!s.start && "titik awal", !s.action && "aksi", !s.end && "titik akhir", !s.cast.length && "aset"].filter(Boolean);
-      return `<div class="card">
-        <div class="card-h"><h3><span class="mono" style="color:var(--accent)">SHOT ${esc(s.id)}</span> · ${esc(s.title)} <span class="muted">· ${s.dur}s · ${esc(s.scale)} · ${esc(s.move)}</span></h3>
-          <div class="row">${missing.length ? `<span class="chip warn">kurang: ${missing.join(", ")}</span>` : `<span class="chip ok">lengkap</span>`}<button class="btn sm" data-act="shot-open" data-id="${s.id}">Edit shot</button></div></div>
-        <div class="row">${s.cast.map((id) => { const a = assetById(id); return a ? `<span class="chip ${id === "sabrina" ? "accent" : a.lock ? "brand" : "warn"}" title="${esc(a.lock || "belum ada frasa kunci")}">${esc(a.name)}</span>` : ""; }).join("")}</div>
-        <div class="prompt-head"><span>First frame (gambar)${s.ff ? " · manual" : ""}</span><span class="row">${s.ff ? `<button class="btn sm" data-act="prompt-reset" data-i="${i}" data-f="ff">↺ Otomatis</button>` : ""}<button class="btn sm" data-act="copy-prompt" data-i="${i}" data-f="ff">⧉ Salin</button></span></div>
-        <div class="prompt-box ${s.ff ? "edited" : ""}" contenteditable="plaintext-only" data-prompt="${i}" data-f="ff">${esc(firstFramePrompt(s))}</div>
-        <div class="prompt-head"><span>Video (${s.dur}s)${s.mv ? " · manual" : ""}</span><span class="row">${s.mv ? `<button class="btn sm" data-act="prompt-reset" data-i="${i}" data-f="mv">↺ Otomatis</button>` : ""}<button class="btn sm" data-act="copy-prompt" data-i="${i}" data-f="mv">⧉ Salin</button></span></div>
-        <div class="prompt-box ${s.mv ? "edited" : ""}" contenteditable="plaintext-only" data-prompt="${i}" data-f="mv">${esc(videoPrompt(s))}</div>
+      const img = media(ep, s, "img"), vid = media(ep, s, "vid"), kvu = kvFirst(ep, s.scene);
+      const pv = vid ? `<video src="${vid.url}" ${img ? `poster="${img.url}"` : ""} muted playsinline preload="metadata" controls></video>`
+        : img ? `<img src="${img.url}" alt="First frame shot ${esc(s.id)}">`
+        : kvu ? `<img class="kv" src="${kvu}" alt="KV ${esc(s.scene)}">` : `<span>${esc(s.scale || "Shot")}</span>`;
+      const pvLabel = vid ? "VIDEO" : img ? "FIRST FRAME" : kvu ? "KV ADEGAN" : "BELUM ADA GAMBAR";
+      return `<div class="card prompt-row">
+        <div class="pr-preview"><div class="pr-frame ${s.cast.includes("sabrina") && !img && !kvu && !vid ? "has-sab" : ""}">${pv}<i>${pvLabel}</i><b>${s.dur}s</b></div></div>
+        <div class="pr-info">
+          <div class="pr-id"><span class="mono">SHOT ${esc(s.id)}</span> · ${esc(s.scene)}</div>
+          <h3>${esc(s.title)}</h3>
+          <div class="row"><span class="chip">${esc(s.scale || "ukuran?")}</span><span class="chip">${esc(s.move || "kamera?")}</span>${missing.length ? `<span class="chip warn">kurang: ${missing.join(", ")}</span>` : `<span class="chip ok">lengkap</span>`}</div>
+          <div class="sae"><b>Awal</b><span>${esc(s.start || "—")}</span><b>Aksi</b><span>${esc(s.action || "—")}</span><b>Akhir</b><span>${esc(s.end || "—")}</span></div>
+          ${s.dialog ? `<div class="line-say">🎙 ${esc(s.dialog)}</div>` : ""}
+          <div class="row">${s.cast.map((id) => castChip(id, id === "sabrina" ? "accent" : (assetById(id) || {}).lock ? "brand" : "warn")).join("")}</div>
+          <div><button class="btn sm" data-act="shot-open" data-id="${s.id}">Edit shot</button></div>
+        </div>
+        <div class="pr-col">
+          <div class="prompt-head"><span>First frame (gambar)${s.ff ? " · manual" : ""}</span><span class="row">${s.ff ? `<button class="btn sm" data-act="prompt-reset" data-i="${i}" data-f="ff">↺ Otomatis</button>` : ""}<button class="btn sm" data-act="copy-prompt" data-i="${i}" data-f="ff">⧉ Salin</button></span></div>
+          <div class="prompt-box ${s.ff ? "edited" : ""}" contenteditable="plaintext-only" data-prompt="${i}" data-f="ff">${esc(firstFramePrompt(s))}</div>
+        </div>
+        <div class="pr-col">
+          <div class="prompt-head"><span>Video (${s.dur}s)${s.mv ? " · manual" : ""}</span><span class="row">${s.mv ? `<button class="btn sm" data-act="prompt-reset" data-i="${i}" data-f="mv">↺ Otomatis</button>` : ""}<button class="btn sm" data-act="copy-prompt" data-i="${i}" data-f="mv">⧉ Salin</button></span></div>
+          <div class="prompt-box ${s.mv ? "edited" : ""}" contenteditable="plaintext-only" data-prompt="${i}" data-f="mv">${esc(videoPrompt(s))}</div>
+        </div>
       </div>`;
     }).join("");
     return html;
