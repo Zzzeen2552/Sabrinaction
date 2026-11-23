@@ -1,0 +1,11 @@
+# Materi dari deck klien (STRICTLY CONFIDENTIAL) — hanya disimpan lokal
+data/deck/
+data/mentor-boy.js
+
+# Konfigurasi lokal Claude Code
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
