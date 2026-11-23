@@ -517,3 +517,27 @@ details.grp[open] > summary::after { transform: rotate(-135deg); }
   .prompt-row { grid-template-columns: 1fr; }
   .pr-preview { max-width: 220px; }
 }
+
+/* ---------- Cerita & Naskah (satu halaman) ---------- */
+.story-card { padding: 0; }
+.story-title { padding: 16px 18px 6px; }
+.story-title input { font-size: 18px; font-weight: 600; }
+.story-beats > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 12px 18px 14px; cursor: pointer; }
+.story-beats > summary::-webkit-details-marker { display: none; }
+.story-beats > summary small { color: var(--muted); }
+.story-beats > summary::after { content: ""; margin-left: 8px; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; }
+.story-beats[open] > summary::after { transform: rotate(45deg); }
+.beat-dots { display: flex; gap: 5px; margin-left: auto; }
+.story-beats .beats { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); padding: 0 18px 18px; }
+.story-beats .beat { background: var(--panel-2); border-radius: 12px; padding: 12px 14px; }
+.story-beats .beat textarea { min-height: 64px; }
+
+/* ---------- pratinjau naskah yang bisa diedit ---------- */
+.screenplay .ed { outline: none; border-radius: 4px; padding: 0 2px; margin: 0 -2px; transition: background .12s, box-shadow .12s; cursor: text; }
+.screenplay .ed:hover { background: var(--panel-2); }
+.screenplay .ed:focus { background: var(--brand-soft); box-shadow: 0 0 0 1px var(--brand); }
+.screenplay .ed:empty::before { content: attr(data-ph); color: var(--muted); opacity: .6; }
+.screenplay .dlg .ed[data-part="text"] { display: block; }
+.screenplay .dlg .paren:has(.ed:empty) { opacity: 0; height: 0; overflow: hidden; transition: opacity .12s; }
+.screenplay .dlg:hover .paren, .screenplay .dlg:focus-within .paren { opacity: 1; height: auto; }
+.screenplay .sh .ed { flex: 1; }

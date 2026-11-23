@@ -22,7 +22,7 @@
   const PROD_KEYS = [["img", "Gambar"], ["vid", "Video"], ["vo", "Suara"]];
   const PROD_CYCLE = ["belum", "antre", "jadi", "-"];
   const STAGES = [
-    ["cerita", "Cerita"], ["naskah", "Naskah"], ["storyboard", "Storyboard"],
+    ["naskah", "Cerita & Naskah"], ["storyboard", "Storyboard"],
     ["prompt", "Prompt"], ["produksi", "Produksi"], ["review", "Review"]
   ];
 
@@ -280,7 +280,13 @@
   const DLG_RE = /^([^:\[\]#]{1,40}?)\s*(?:\(([^)]*)\))?\s*:\s+(.+)$/;
   function parseScript(src) {
     const blocks = [];
-    String(src || "").split(/\r?\n/).forEach((raw) => {
+    String(src || "").split(/\r?\n/).forEach((raw, ln) => {
+      const n0 = blocks.length;
+      parseLine(raw);
+      if (blocks.length > n0) blocks[blocks.length - 1].ln = ln; // baris sumber, untuk edit dari pratinjau
+    });
+    return blocks;
+    function parseLine(raw) {
       const line = raw.trim();
       if (!line) return;
       let m;
@@ -292,8 +298,7 @@
       if ((m = line.match(/^\[(TEKS|SFX)\]\s*(.*)$/i))) return blocks.push({ t: m[1].toLowerCase(), text: m[2] });
       if ((m = line.match(DLG_RE)) && !/[.!?]$/.test(m[1])) return blocks.push({ t: "dlg", tag: "", who: m[1].trim(), paren: m[2] || "", text: m[3] });
       blocks.push({ t: "act", text: line });
-    });
-    return blocks;
+    }
   }
   function scriptStats(ep) {
     const b = parseScript(ep.script);
@@ -368,7 +373,9 @@
     }
     if (key === "naskah") {
       const st = scriptStats(ep);
-      return { dot: st.lines ? (st.hasSabrina ? "ok" : "mid") : "no", num: st.lines ? `${st.lines} dialog` : "kosong", done: st.lines > 0 };
+      const b = stageInfo(ep, "cerita");
+      const dot = st.lines && b.done ? (st.hasSabrina ? "ok" : "mid") : st.lines || b.num !== `0/${BEATS.length}` ? "mid" : "no";
+      return { dot, num: `${b.num} beat · ${st.lines ? `${st.lines} dialog` : "naskah kosong"}`, done: b.done && st.lines > 0, beatsDone: b.done };
     }
     if (key === "storyboard") {
       const t = shotSec(ep);
@@ -536,7 +543,7 @@
   // ---------- routing ----------
   function route() {
     const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
-    if (parts[0] === "ep" && epById(parts[1])) return { page: parts[2] || "cerita", ep: epById(parts[1]), sub: parts[3] };
+    if (parts[0] === "ep" && epById(parts[1])) return { page: !parts[2] || parts[2] === "cerita" ? "naskah" : parts[2], ep: epById(parts[1]), sub: parts[3] };
     if (parts[0] === "sabrina") return { page: "sabrina" };
     if (parts[0] === "ekspor") return { page: "ekspor" };
     return { page: "home" };
@@ -551,7 +558,7 @@
     $("#ep-switch").innerHTML = S.episodes.length ? `<select id="ep-select" aria-label="Pilih episode">
       ${S.episodes.map((e) => `<option value="${e.id}" ${ep && e.id === ep.id ? "selected" : ""}>${e.id} · ${esc(e.title)}</option>`).join("")}
       <option value="__new">+ Episode baru…</option></select>` : `<button class="btn sm" data-act="new-ep">+ Episode</button>`;
-    const STAGE_ICO = { cerita: "book", naskah: "text", storyboard: "film", prompt: "spark", produksi: "rec", review: "check" };
+    const STAGE_ICO = { cerita: "book", naskah: "book", storyboard: "film", prompt: "spark", produksi: "rec", review: "check" };
     const link = (href, icon, label, on, dot, title) => `<a href="${href}" class="${on ? "on" : ""}" title="${esc(title || label)}"><span class="ico">${ico(icon)}${dot ? `<i class="dot ${dot}"></i>` : ""}</span><span class="lbl">${label}</span></a>`;
     let html = link("#/", "home", "Ringkasan", r.page === "home") + link("#/sabrina", "user", "Character", r.page === "sabrina", "", "Character, lokasi & properti");
     if (ep) {
@@ -570,7 +577,7 @@
     const r = route();
     renderChrome(r);
     const app = $("#app");
-    const views = { home: viewHome, sabrina: viewSabrina, ekspor: viewExport, cerita: viewCerita, naskah: viewNaskah, storyboard: viewStoryboard, prompt: viewPrompt, produksi: viewProduksi, review: viewReview };
+    const views = { home: viewHome, sabrina: viewSabrina, ekspor: viewExport, cerita: viewNaskah, naskah: viewNaskah, storyboard: viewStoryboard, prompt: viewPrompt, produksi: viewProduksi, review: viewReview };
     app.innerHTML = (views[r.page] || viewHome)(r.ep, r);
     if (r.page === "naskah") app.querySelector(".script-src")?.addEventListener("input", onScriptInput);
     if (r.page === "storyboard") syncVideo();
@@ -592,7 +599,7 @@
       if (bad) return next.push({ ep: e, text: bad.text, href: `#/ep/${e.id}/${bad.link || "review"}`, kind: "review" });
       const miss = STAGES.find(([k]) => k !== "review" && !stageInfo(e, k).done);
       if (miss) {
-        const map = { cerita: ["Lengkapi beat cerita", "beats"], naskah: ["Tulis naskah", "write"], storyboard: ["Pecah jadi storyboard", "storyboard"], prompt: ["Lengkapi shot & prompt", "video"], produksi: ["Produksi gambar/video/suara", "produce"] };
+        const map = { naskah: stageInfo(e, "naskah").beatsDone ? ["Tulis naskah", "write"] : ["Lengkapi beat cerita", "beats"], storyboard: ["Pecah jadi storyboard", "storyboard"], prompt: ["Lengkapi shot & prompt", "video"], produksi: ["Produksi gambar/video/suara", "produce"] };
         next.push({ ep: e, text: map[miss[0]][0], href: `#/ep/${e.id}/${miss[0]}`, kind: map[miss[0]][1] });
       }
     });
@@ -713,20 +720,25 @@
     return `<div class="page-head"><div><span class="chip accent">${ep.id}</span> <h1 style="display:inline;margin-left:6px">${esc(title)}</h1><p>${sub}</p></div><div class="row">${actions}</div></div>`;
   }
 
-  function viewCerita(ep) {
-    return epHead(ep, "Cerita", "Tujuh beat micro drama: hook dalam 3 detik, satu modus, satu titik balik bersama Sabrina.", `${agentBtn("beats", "Perintah pertajam beat")}<button class="btn danger" data-act="del-ep">Hapus episode</button>`) + `
-    <div class="card"><label class="f">Judul episode<input type="text" data-bind="ep:title" data-chrome="1" value="${esc(ep.title)}" style="font-size:18px;font-weight:700"></label></div>
-    <div class="beats section">${BEATS.map(([k, l, h]) => `
-      <div class="card beat ${k === "hook" ? "hook" : ""}">
-        <div class="lbl"><span>${l}</span>${(ep.beats[k] || "").trim() ? `<span class="st-ok">✓</span>` : ""}</div>
-        <textarea data-bind="ep:beats.${k}" data-chrome="1" placeholder="${esc(h)}">${esc(ep.beats[k] || "")}</textarea>
-      </div>`).join("")}</div>
-    <div class="hint section">Belum yakin? Tekan <b>⧉ Perintah pertajam beat</b>, tempel ke Claude Code yang sudah memasang <code>drama-skills</code>, lalu salin hasilnya ke kotak di atas. Lanjut ke <a href="#/ep/${ep.id}/naskah">Naskah →</a></div>`;
-  }
-
+  const storyOpen = {};
   function viewNaskah(ep) {
     const st = scriptStats(ep);
-    return epHead(ep, "Naskah", `${st.scenes} adegan · ${st.lines} dialog · estimasi dialog ±${Math.round(st.dialogSec)} dtk dari target ${S.project.epSeconds} dtk`, agentBtn("write", "Perintah tulis naskah", "primary")) + `
+    const nBeat = BEATS.filter(([k]) => (ep.beats[k] || "").trim()).length;
+    const open = storyOpen[ep.id] != null ? storyOpen[ep.id] : nBeat < BEATS.length || !st.lines;
+    return epHead(ep, "Cerita & Naskah", `${nBeat}/${BEATS.length} beat · ${st.scenes} adegan · ${st.lines} dialog · estimasi dialog ±${Math.round(st.dialogSec)} dtk dari target ${S.project.epSeconds} dtk`,
+      `${agentBtn("beats", "Perintah pertajam beat")}${agentBtn("write", "Perintah tulis naskah", "primary")}<button class="btn danger" data-act="del-ep">Hapus episode</button>`) + `
+    <div class="card story-card">
+      <div class="story-title"><label class="f">Judul episode<input type="text" data-bind="ep:title" data-chrome="1" value="${esc(ep.title)}"></label></div>
+      <details class="story-beats" data-story="${esc(ep.id)}" ${open ? "open" : ""}>
+        <summary><b>Cerita · 7 beat</b> <small>${nBeat}/${BEATS.length} terisi</small><span class="beat-dots">${BEATS.map(([k, l]) => `<i class="dot ${(ep.beats[k] || "").trim() ? "ok" : "no"}" title="${esc(l)}"></i>`).join("")}</span></summary>
+        <div class="beats">${BEATS.map(([k, l, h]) => `
+          <div class="beat ${k === "hook" ? "hook" : ""}">
+            <div class="lbl"><span>${l}</span>${(ep.beats[k] || "").trim() ? `<span class="st-ok">✓</span>` : ""}</div>
+            <textarea data-bind="ep:beats.${k}" data-chrome="1" placeholder="${esc(h)}">${esc(ep.beats[k] || "")}</textarea>
+          </div>`).join("")}</div>
+      </details>
+    </div>
+    <h2 class="section" style="margin-bottom:10px">Naskah</h2>
     <div class="hint" style="margin-bottom:14px">Format: <code>## ${ep.id}-SC001 INT · Lokasi · Waktu</code> · <code>Nama: dialog</code> · <code>Nama (arahan): dialog</code> · <code>[OS] Nama: …</code> · <code>[VO] Nama: …</code> · <code>[TEKS] …</code> · <code>[SFX] …</code> · paragraf lain = aksi.</div>
     <div class="split">
       <div class="card"><div class="card-h"><h3>Sumber (Markdown)</h3><span class="muted" id="script-count">${words(ep.script)} kata</span></div>
@@ -735,16 +747,39 @@
         <div class="screenplay" id="screenplay">${renderScreenplay(st.blocks)}</div></div>
     </div>`;
   }
+  // Pratinjau bisa diedit langsung: tiap blok tahu baris sumbernya (data-ln) dan dirakit ulang ke Markdown.
+  const ce = (part, text, ph) => `<span class="ed" contenteditable="plaintext-only" spellcheck="false" data-part="${part}" data-ph="${esc(ph || "")}">${esc(text)}</span>`;
   function renderScreenplay(blocks) {
-    if (!blocks.length) return `<div class="empty"><h3>Naskah masih kosong</h3>Tulis langsung, atau salin perintah untuk agen di kanan atas.</div>`;
+    if (!blocks.length) return `<div class="empty"><h3>Naskah masih kosong</h3>Tulis di sumber Markdown, atau salin perintah untuk agen di kanan atas.</div>`;
     const sab = S.sabrina.name.toLowerCase();
     return blocks.map((b) => {
-      if (b.t === "sh") { const ep = route().ep; const sc = ((b.text.match(/(SC\d+)/i) || [])[1] || "").toUpperCase(); const u = ep && sc ? kvFirst(ep, sc) : ""; return `<div class="sh ${u ? "has-kv" : ""}">${u ? `<img src="${u}" alt="KV ${esc(sc)}">` : ""}<span>${esc(b.text)}</span></div>`; }
-      if (b.t === "act") return `<p class="act">${esc(b.text)}</p>`;
-      if (b.t === "teks") return `<p class="fx"><span class="tag teks">TEKS</span>${esc(b.text)}</p>`;
-      if (b.t === "sfx") return `<p class="fx"><span class="tag sfx">SFX</span>${esc(b.text)}</p>`;
-      return `<div class="dlg ${b.who.toLowerCase().includes(sab) ? "sab" : ""}"><span class="who">${b.tag ? `<span class="tag ${b.tag.toLowerCase()}">${b.tag}</span>` : ""}${esc(b.who)}</span>${b.paren ? `<span class="paren">(${esc(b.paren)})</span>` : ""}${esc(b.text)}</div>`;
+      const at = `data-ln="${b.ln}" data-t="${b.t}" data-tag="${esc(b.tag || "")}"`;
+      if (b.t === "sh") { const ep = route().ep; const sc = ((b.text.match(/(SC\d+)/i) || [])[1] || "").toUpperCase(); const u = ep && sc ? kvFirst(ep, sc) : ""; return `<div class="sh sp-b ${u ? "has-kv" : ""}" ${at}>${u ? `<img src="${u}" alt="KV ${esc(sc)}">` : ""}${ce("text", b.text)}</div>`; }
+      if (b.t === "act") return `<p class="act sp-b" ${at}>${ce("text", b.text)}</p>`;
+      if (b.t === "teks") return `<p class="fx sp-b" ${at}><span class="tag teks">TEKS</span>${ce("text", b.text)}</p>`;
+      if (b.t === "sfx") return `<p class="fx sp-b" ${at}><span class="tag sfx">SFX</span>${ce("text", b.text)}</p>`;
+      return `<div class="dlg sp-b ${b.who.toLowerCase().includes(sab) ? "sab" : ""}" ${at}><span class="who">${b.tag ? `<span class="tag ${b.tag.toLowerCase()}">${b.tag}</span>` : ""}${ce("who", b.who, "Nama")}</span><span class="paren">(${ce("paren", b.paren, "arahan")})</span>${ce("text", b.text, "Dialog")}</div>`;
     }).join("");
+  }
+  function blockLine(el) {
+    const part = (k) => { const x = el.querySelector(`[data-part="${k}"]`); return x ? x.textContent.replace(/\s*\n\s*/g, " ").trim() : ""; };
+    const t = el.dataset.t, text = part("text");
+    if (t === "sh") return `## ${text}`;
+    if (t === "teks") return `[TEKS] ${text}`;
+    if (t === "sfx") return `[SFX] ${text}`;
+    if (t === "act") return text;
+    const paren = part("paren");
+    return `${el.dataset.tag ? `[${el.dataset.tag}] ` : ""}${part("who")}${paren ? ` (${paren})` : ""}: ${text}`;
+  }
+  function onPreviewEdit(el) {
+    const ep = route().ep; const b = el.closest(".sp-b"); if (!ep || !b) return;
+    const lines = String(ep.script || "").split(/\r?\n/);
+    lines[+b.dataset.ln] = blockLine(b);
+    ep.script = lines.join("\n"); save();
+    const src = $(".script-src"); if (src) src.value = ep.script;
+    $("#script-count").textContent = `${words(ep.script)} kata`;
+    clearTimeout(onScriptInput.t);
+    onScriptInput.t = setTimeout(() => renderChrome(route()), 400);
   }
   function onScriptInput(e) {
     const ep = route().ep;
@@ -1190,13 +1225,15 @@
     } else if (el.dataset.sheetLabel) {
       const sh = sheetsOf(el.dataset.sheetLabel).find((x) => x.key === el.dataset.key);
       if (sh) { sh.label = el.value; save(); }
+    } else if (el.dataset.part && el.closest("#screenplay")) {
+      onPreviewEdit(el);
     } else if (el.dataset.prompt != null) {
       const ep = route().ep; const s = ep.shots[+el.dataset.prompt];
       s[el.dataset.f] = el.textContent.trim();
       el.classList.add("edited"); save();
     }
   });
-  document.addEventListener("toggle", (e) => { if (e.target.dataset && e.target.dataset.kvstrip) kvOpen = e.target.open; }, true);
+  document.addEventListener("toggle", (e) => { if (!e.target.dataset) return; if (e.target.dataset.kvstrip) kvOpen = e.target.open; if (e.target.dataset.story) storyOpen[e.target.dataset.story] = e.target.open; }, true);
   document.addEventListener("change", (e) => {
     const el = e.target;
     if (el.id === "ep-select") {
@@ -1472,6 +1509,8 @@
     addEventListener("pointermove", move); addEventListener("pointerup", up);
   });
   document.addEventListener("keydown", (e) => {
+    // pratinjau naskah: satu blok = satu baris sumber, jadi Enter tidak membuat baris baru
+    if (e.key === "Enter" && e.target.closest && e.target.closest("#screenplay .ed")) { e.preventDefault(); e.target.blur(); return; }
     const tag0 = (e.target.tagName || "").toLowerCase();
     const typing = ["input", "textarea", "select"].includes(tag0) || e.target.isContentEditable;
     if ($("#drawer").hidden && !typing && editorTarget()) {
