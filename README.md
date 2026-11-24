@@ -20,7 +20,7 @@ Lalu buka http://127.0.0.1:5173. Bisa juga langsung buka `index.html` di browser
 | Naskah | Editor Markdown + pratinjau naskah | `/short-drama-write` |
 | Storyboard | Mode editor (inspector shot, preview 9:16, timeline teks/video/suara/SFX — klik klip, seret tepi kanan untuk durasi, spasi untuk putar, ←/→ pindah shot), plus mode kartu & daftar dengan bar ritme dan impor JSON | `/short-drama-storyboard` |
 | Prompt | Prompt first-frame & video, disusun otomatis | `/short-drama-video-prompts` |
-| Produksi | Status gambar/video/suara per shot, unduh paket OpenFilm. Sakelar workflow KV per episode: **manual** (KV diunggah sendiri) atau **otomatis** (ref2movie MiniMax di RunningHub lewat Claude in Chrome, KV diambil dari frame hasil). Preset color grade per episode (Netral, Kafe indie Korea, Pagi hangat, Kantor biru bersih, Malam tenang, Kenangan pastel) dengan pratinjau, ikut ter-render di paket OpenFilm | `/short-drama-produce`, Claude in Chrome + RunningHub, skill OpenFilm |
+| Produksi | Status gambar/video/suara per shot, unduh paket OpenFilm. Sakelar workflow KV per episode: **manual** (KV diunggah sendiri) atau **otomatis** (ref2movie MiniMax di RunningHub lewat Claude in Chrome, KV diambil dari frame hasil). Preset color grade per episode (Netral, Kafe indie Korea, Blue BRI, Pagi hangat, Kantor biru bersih, Malam tenang, Kenangan pastel) dengan pratinjau, ikut ter-render di paket OpenFilm | `/short-drama-produce`, Claude in Chrome + RunningHub, skill OpenFilm |
 | Review | Cek otomatis + checklist kepatuhan brand | `/short-drama-review` |
 | Ekspor | Markdown per episode, paket editing OpenFilm, cadangan/impor JSON | — |
 

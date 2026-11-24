@@ -2,7 +2,7 @@
 
 Prompt ditulis dalam bahasa Inggris untuk model generate. Struktur yang konsisten membuat hasil antar shot terasa satu film.
 
-**Frasa wajib di setiap prompt (permintaan tim):** `Photoreal, natural skin texture, shot on 35mm film,` di awal deskripsi gaya. Cahaya ditulis alami dengan sumber jelas (cahaya jendela lembut, kontras rendah, palet redup ala film indie Korea), bukan cahaya lampu atau iklan. Untuk video, lampirkan satu gambar acuan lokasi sebagai `<Environment 1>` dan tulis `overall_soundscape` dengan cap waktu. Lihat juga aturan terbaru di `selera-tim.md`.
+**Frasa wajib di setiap prompt (permintaan tim):** `Photoreal, natural skin texture, shot on 35mm film,` di awal deskripsi gaya. Langsung sesudahnya: `natural matte skin with a light powdered finish, no oily shine, sweat or glossy highlights on the forehead, nose or cheeks; soft diffused key light` — model cenderung membuat kulit mengilap. Cahaya ditulis alami dengan sumber jelas (cahaya jendela lembut, kontras rendah, palet redup ala film indie Korea), bukan cahaya lampu atau iklan. Untuk video, lampirkan satu gambar acuan lokasi sebagai `<Environment 1>` dan tulis `overall_soundscape` dengan cap waktu. Lihat juga aturan terbaru di `selera-tim.md`.
 
 ## Struktur prompt first frame
 
