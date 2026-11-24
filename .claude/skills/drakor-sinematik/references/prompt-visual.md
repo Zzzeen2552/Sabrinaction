@@ -49,6 +49,15 @@ Prinsip:
 - Untuk dialog dengan lip-sync, sebutkan siapa yang bicara; untuk VO, tegaskan `no lip movement, internal monologue`. Panjang kalimat harus muat di durasi klip (±2,5 kata per detik untuk bicara santai).
 - Subtitle, teks layar, dan musik ditambahkan saat editing, jadi tutup prompt video dengan `No on-screen text, no subtitles, no music.` agar model tidak menempelkan huruf atau lagu.
 
+## Model MiniMax H3
+
+H3 membuat video sekaligus suara dan punya format prompt sendiri. Kalau targetnya H3 (mis. lewat RunningHub) dan skill `h3-prompt-writing` terpasang, tulis prompt dengan format skill itu: Ref2VA untuk gambar referensi, I2VA kalau ada first frame. Isinya tetap mengikuti skill ini:
+- Gerak kamera pakai kosakata H3 dengan amplitudo kecil (`pushes in with small amplitude at slow speed`, `holds a static shot`). Untuk komedi, static shot.
+- Dialog Bahasa Indonesia kata per kata di `<d>[Indonesian] …</d>`; arahan bicara ("pelan, setengah berbisik") ditulis di luar `<d>` dalam bahasa Inggris.
+- `overall_soundscape` diisi ambience nyata (AC, ketikan, antrean). Hening adalah pilihan yang sah.
+- `non_diegetic_music: N/A`. Musik dan OST ditambahkan saat editing supaya bisa ditahan sampai puncak emosi.
+- Style anchor adegan masuk ke deskripsi lingkungan dan cahaya di setiap shot, kalimatnya sama persis.
+
 ## Gerak kamera terukur
 
 Model video lebih patuh pada gerak yang diberi jarak, sudut, kecepatan, dan tinggi kamera. Terjemahkan field `move` dashboard begini (angka kecil = rasa drakor; jangan dibesarkan tanpa alasan):

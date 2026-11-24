@@ -533,8 +533,8 @@
         const url = S.project.rhUrl || RH_DEFAULT; const dir = `${id}-runninghub`;
         const noSheet = [...new Set(ep.shots.flatMap((s) => s.cast))].map(assetById).filter((a) => a && a.kind === "Karakter" && a.lock && !sheetsOf(a.id).length).map((a) => a.name);
         return `Workflow KV otomatis ${id} "${ep.title}" — ref2movie di RunningHub lewat Claude in Chrome (browser saya, akun RunningHub saya sendiri).
-Aplikasi: ${url} (MiniMax, gambar referensi → video).
-Pakai skill drakor-sinematik untuk merapikan prompt video bila perlu (gerak kamera terukur, style anchor yang sama per adegan, tanpa teks/subtitle/musik).
+Aplikasi: ${url} (MiniMax H3, gambar referensi → video + suara).
+Tulis ulang setiap prompt dengan skill h3-prompt-writing mode Ref2VA (enam bagian: subject_definitions, summary, retention_analysis, detailed_description, overall_soundscape, non_diegetic_music; label <Subject N>/<Picture N> konsisten; durasi 4–15 dtk per generate). Pakai skill drakor-sinematik untuk rasa adegan: gerak kamera kecil dan termotivasi, akting mikro, tanpa teks di layar. Dialog tetap Bahasa Indonesia kata per kata di dalam <d>[Indonesian] …</d>; VO dengan "says in an off-screen voiceover" dan bibir tertutup. non_diegetic_music: N/A (musik ditambahkan saat editing). Shot yang lebih panjang dari 15 dtk dipecah. Tunjukkan prompt H3 hasil tulis ulang di pratinjau.
 
 Langkah:
 1. Buka aplikasinya di tab baru. Baca dulu form inputnya (slot gambar referensi, prompt, durasi, rasio, jumlah) dan laporkan field yang ada sebelum mengisi apa pun.

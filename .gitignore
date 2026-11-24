@@ -9,3 +9,6 @@ data/mentor-boy.js
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Skill pihak ketiga (MiniMax-AI/MiniMax-H3, repo tanpa lisensi) — pasang lokal, jangan ikut di-push
+.claude/skills/h3-prompt-writing/
