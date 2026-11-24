@@ -12,3 +12,6 @@ desktop.ini
 
 # Skill pihak ketiga (MiniMax-AI/MiniMax-H3, repo tanpa lisensi) — pasang lokal, jangan ikut di-push
 .claude/skills/h3-prompt-writing/
+
+# Hasil generate (video/KV) per episode — besar & berisi materi klien
+*-runninghub/

@@ -428,6 +428,10 @@ details.grp[open] > summary::after { transform: rotate(-135deg); }
 .kv-mode-row small { flex: 1 1 260px; font-size: 12.5px; line-height: 1.45; }
 .rh-url { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-weight: 500; color: var(--text); }
 .rh-url input { flex: 1; min-width: 0; font: 12px var(--mono); padding: 6px 10px; }
+.kv-inbox { margin: 0 18px 14px; padding: 12px; border: 1px dashed var(--line, #444); border-radius: 12px; }
+.kv-inbox .kv-h span { white-space: normal; }
+.kv-inbox-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.kv-inbox-list select { width: 100%; padding: 5px 8px; font-size: 12px; }
 .kv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; padding: 0 18px 18px; }
 .kv-scene { display: flex; flex-direction: column; gap: 8px; }
 .kv-h { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
@@ -545,3 +549,7 @@ details.grp[open] > summary::after { transform: rotate(-135deg); }
 .screenplay .dlg .paren:has(.ed:empty) { opacity: 0; height: 0; overflow: hidden; transition: opacity .12s; }
 .screenplay .dlg:hover .paren, .screenplay .dlg:focus-within .paren { opacity: 1; height: auto; }
 .screenplay .sh .ed { flex: 1; }
+
+.voice-ref { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.voice-ref audio { height: 34px; max-width: 100%; flex: 1 1 220px; }
+.voice-ref small { flex: 1 1 160px; }

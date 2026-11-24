@@ -189,6 +189,7 @@
   // metadata (label, nama file) di S; gambarnya di IndexedDB dengan kunci "asset|<id>|<acak>"
   // pemilik galeri: id aset ("sabrina", "ratna", …) atau KV adegan "kv:<epId>:<scene>"
   function ownerInfo(id) {
+    if (String(id).startsWith("kv:") && id.endsWith(":_")) { const e = id.split(":")[1]; return { id, name: `${e} · KV belum dipetakan`, sub: "", kind: "KV", file: `${e}-KV` }; }
     if (String(id).startsWith("kv:")) { const [, e, sc] = id.split(":"); const h = (scenesOf(epById(e)).find((x) => x.sc === sc) || {}).heading; return { id, name: `${e} · ${sc}`, sub: h || "", kind: "KV", file: `${e}-${sc}-KV` }; }
     const a = assetById(id); return a ? { id, name: a.name, sub: "", kind: a.kind, file: a.id } : null;
   }
@@ -203,9 +204,9 @@
     return a ? (a.sheets = a.sheets || []) : [];
   }
   const sheetLabelDefault = (kind, n) => (kind === "KV" ? ["Key visual", "Alternatif", "Mood & lighting", "Blocking"] : kind === "Karakter" ? ["Depan · samping · belakang", "Ekspresi", "Kostum detail", "Close-up wajah"] : kind === "Lokasi" ? ["Plate lokasi", "Sudut lain", "Malam"] : ["Sheet properti", "Detail"])[n] || `Referensi ${n + 1}`;
-  async function addSheets(id, files) {
+  async function addSheets(id, files, quiet) {
     const imgs = [...files].filter((f) => /^image\//.test(f.type));
-    if (!imgs.length) return toast("Pilih file gambar (JPG/PNG/WebP)");
+    if (!imgs.length) return quiet ? 0 : toast("Pilih file gambar (JPG/PNG/WebP)");
     const a = ownerInfo(id); const list = sheetsOf(id);
     let ok = 0;
     for (const f of imgs) {
@@ -219,7 +220,9 @@
         ok++;
       } catch (err) { toast("Gagal menyimpan: " + err.message); }
     }
-    save(); if ($("#ed-preview")) { render(); } else render(); if (ok) toast(`${ok} ${a && a.kind === "KV" ? "KV" : "referensi"} ditambahkan ke ${a ? a.name : id}`);
+    save(); if (quiet) return ok;
+    render(); if (ok) toast(`${ok} ${a && a.kind === "KV" ? "KV" : "referensi"} ditambahkan ke ${a ? a.name : id}`);
+    return ok;
   }
   async function removeSheet(id, key) {
     const list = sheetsOf(id); const i = list.findIndex((x) => x.key === key); if (i < 0) return;
@@ -275,6 +278,96 @@
   }
   const kvFirst = (ep, sc) => { const sh = sheetsOf(kvId(ep, sc)).find((x) => shMedia(x)); return sh ? shMedia(sh).url : ""; };
   const kvNames = (ep, sc) => sheetsOf(kvId(ep, sc)).map((x) => `${x.label} (${x.name || "gambar"})`);
+
+  // ---------- suara acuan per tokoh ----------
+  // Satu contoh suara (10–20 dtk, satu sumber tetap) per tokoh; filenya di IndexedDB "voice|<id>|<acak>".
+  const voiceOwner = (id) => (id === "sabrina" ? S.sabrina : S.assets.find((x) => x.id === id && x.kind === "Karakter"));
+  const voiceMedia = (id) => { const o = voiceOwner(id); return o && o.voiceRef ? MEDIA.get(o.voiceRef.key) : null; };
+  const voiceFile = (id) => { const o = voiceOwner(id); const ext = ((o && o.voiceRef && o.voiceRef.name) || "").match(/\.(\w+)$/); return `voice-${id}.${ext ? ext[1].toLowerCase() : "mp3"}`; };
+  async function setVoice(id, f) {
+    const o = voiceOwner(id); if (!o || !f) return;
+    if (!/^audio\//.test(f.type) && !/\.(mp3|wav|m4a|ogg)$/i.test(f.name)) return toast("Pilih file audio (MP3/WAV)");
+    if (f.size > 20 * 1048576) return toast("Maksimal 20 MB (batas slot audio RunningHub)");
+    const key = `voice|${id}|${Math.random().toString(36).slice(2, 10)}`;
+    try {
+      await idb("readwrite", (st) => st.put(f, key));
+      if (o.voiceRef) await delVoice(id, true);
+      MEDIA.set(key, { url: URL.createObjectURL(f), type: f.type, name: f.name, size: f.size });
+      o.voiceRef = { key, name: f.name }; save(); render(); toast(`Suara acuan ${id === "sabrina" ? S.sabrina.name : o.name} disimpan`);
+    } catch (e) { toast("Gagal menyimpan suara: " + e.message); }
+  }
+  async function delVoice(id, quiet) {
+    const o = voiceOwner(id); if (!o || !o.voiceRef) return; const key = o.voiceRef.key;
+    try { await idb("readwrite", (st) => st.delete(key)); } catch (e) {}
+    const m = MEDIA.get(key); if (m) URL.revokeObjectURL(m.url); MEDIA.delete(key);
+    if (!quiet) { delete o.voiceRef; save(); render(); }
+  }
+  function voiceBlock(id) {
+    const o = voiceOwner(id); if (!o) return ""; const v = o.voiceRef; const m = voiceMedia(id);
+    return `<div class="voice-ref">${m ? `<audio controls preload="none" src="${m.url}"></audio><small class="muted">${esc(v.name)}${m.size ? " · " + fmtSize(m.size) : ""}</small><a class="btn sm" href="${m.url}" download="${esc(voiceFile(id))}" title="Unduh untuk diunggah ke slot audio">⇩</a><button class="btn sm danger" data-act="voice-del" data-id="${esc(id)}">Hapus</button>` : v ? `<small class="muted">File suara tidak ada di browser ini — unggah lagi.</small>` : `<small class="muted">Belum ada. Tanpa acuan, suara dikarang ulang di setiap generate.</small>`}<label class="btn sm">⇧ ${v ? "Ganti" : "Unggah"} suara<input type="file" accept="audio/*,.mp3,.wav" data-act="voice-upload" data-id="${esc(id)}" hidden></label></div>`;
+  }
+  // tokoh yang berbicara di sebuah shot (dari baris dialog "Nama: …")
+  function speakersOf(s) {
+    const cands = [["sabrina", S.sabrina.name], ...S.assets.filter((a) => a.kind === "Karakter").map((a) => [a.id, a.name])];
+    const lines = String(s.dialog || "").split(/\n/).map((l) => l.replace(/^\[(VO|OS)\]\s*/i, "").toLowerCase());
+    return cands.filter(([, n]) => { const w = String(n).split(/\s|\(/)[0].toLowerCase(); return w && lines.some((l) => l.startsWith(w)); }).map(([id]) => id);
+  }
+
+  // ---------- KV massal & setting dari KV ----------
+  // Unggah banyak KV sekaligus: dipetakan ke adegan dari nama file (…SC002…); sisanya masuk kotak "belum dipetakan" (kv:<ep>:_).
+  const KV_INBOX = "_";
+  async function addKvBulk(ep, files) {
+    const byNum = {}; scenesOf(ep).forEach((x) => { byNum[+x.sc.replace(/\D/g, "")] = x.sc; });
+    const groups = {};
+    [...files].filter((f) => /^image\//.test(f.type)).forEach((f) => {
+      const n = (f.name.match(/SC[\s_-]*0*(\d+)/i) || [])[1];
+      const sc = n && byNum[+n] ? byNum[+n] : KV_INBOX; (groups[sc] = groups[sc] || []).push(f);
+    });
+    if (!Object.keys(groups).length) return toast("Pilih file gambar (JPG/PNG/WebP)");
+    toast("Menyimpan KV…");
+    let ok = 0, inbox = 0;
+    for (const sc of Object.keys(groups)) { const n = await addSheets(kvId(ep, sc), groups[sc], true); ok += n; if (sc === KV_INBOX) inbox += n; }
+    kvOpen = true; render();
+    toast(`${ok} KV ditambahkan · ${ok - inbox} langsung ke adegan${inbox ? ` · ${inbox} perlu dipilih adegannya` : ""}`);
+  }
+  function moveKv(ep, from, to, key) {
+    const a = sheetsOf(kvId(ep, from)); const i = a.findIndex((x) => x.key === key); if (i < 0 || !to) return;
+    const [sh] = a.splice(i, 1); const b = sheetsOf(kvId(ep, to)); sh.label = sheetLabelDefault("KV", b.length); b.push(sh);
+    save(); render(); toast(`KV dipindah ke ${to}`);
+  }
+  function kvInbox(ep) {
+    const id = kvId(ep, KV_INBOX); const list = sheetsOf(id); if (!list.length) return "";
+    const sc = scenesOf(ep);
+    return `<div class="kv-inbox"><div class="kv-h"><b>Belum dipetakan</b><span>Nama file tanpa nomor adegan. Pilih adegan untuk tiap KV (atau beri nama file seperti <code>SC002-meja.jpg</code>).</span><small>${list.length} gambar</small></div>
+      <div class="kv-inbox-list">${list.map((sh) => { const m = shMedia(sh); return `<figure class="sheet">
+        <button class="sheet-img" data-act="sheet-view" data-id="${esc(id)}" data-key="${esc(sh.key)}" title="${esc(sh.name || "")}">${m ? `<img src="${m.url}" alt="">` : "<span>File tidak ada</span>"}</button>
+        <figcaption><select data-kv-move="${esc(sh.key)}" aria-label="Pindahkan ke adegan"><option value="">Adegan…</option>${sc.map((x) => `<option value="${esc(x.sc)}">${esc(x.sc)} ${esc(x.heading.slice(0, 28))}</option>`).join("")}</select><button class="x" data-act="sheet-del" data-id="${esc(id)}" data-key="${esc(sh.key)}" title="Hapus">✕</button></figcaption></figure>`; }).join("")}</div></div>`;
+  }
+  // Lokasi ↔ adegan: cocok bila kata penting nama lokasi muncul di judul adegan (mis. "Banking Hall BRI" ↔ "INT · Banking Hall BRI · Pagi").
+  const LOC_STOP = new Set(["int", "ext", "pagi", "siang", "sore", "malam", "dan", "the", "montase", "lanjutan", "flashback"]);
+  const locWords = (s) => String(s || "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !LOC_STOP.has(w));
+  const locMatch = (a, heading) => { const t = locWords(a.name); const h = new Set(locWords(heading)); return t.length > 0 && t.filter((w) => h.has(w)).length >= Math.min(2, t.length); };
+  function kvForLocation(a) {
+    const out = [];
+    S.episodes.forEach((ep) => scenesOf(ep).forEach((x) => {
+      if (!locMatch(a, x.heading)) return;
+      const sheets = sheetsOf(kvId(ep, x.sc)).filter((sh) => shMedia(sh));
+      out.push({ ep, sc: x.sc, heading: x.heading, sheets });
+    }));
+    return out;
+  }
+  const settingAuto = (a) => a && a.kind === "Lokasi" && a.settingMode === "auto";
+  async function exportKvZip(assetId) {
+    const locs = assetId ? [assetById(assetId)].filter(Boolean) : S.assets.filter(settingAuto);
+    const files = [];
+    for (const a of locs) for (const g of kvForLocation(a)) for (const [i, sh] of g.sheets.entries()) {
+      try { files.push({ name: `kv-setting/${a.id}/${g.ep.id}-${g.sc}-${i + 1}.jpg`, data: await fetchBytes(shMedia(sh).url) }); } catch (e) {}
+    }
+    if (!files.length) return toast(assetId ? "Belum ada KV dari adegan yang cocok dengan lokasi ini" : "Belum ada KV untuk lokasi mode otomatis");
+    const el = document.createElement("a"); el.href = URL.createObjectURL(makeZip(files)); el.download = `kv-setting${assetId ? "-" + assetId : ""}.zip`;
+    document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(el.href), 4000);
+    toast(`${files.length} KV dikemas · ekstrak ZIP-nya di folder kerja agen`);
+  }
 
   // ---------- parsing & derived data ----------
   const DLG_RE = /^([^:\[\]#]{1,40}?)\s*(?:\(([^)]*)\))?\s*:\s+(.+)$/;
@@ -529,6 +622,23 @@
           return `- SHOT ${s.id}: ${refs.join(" · ") || "(tanpa pemeran)"}${kv.length ? ` · KV ${s.scene}: ${kv.join(", ")}` : ""}`;
         }).join("\n")}\nJangan generate shot yang karakternya (utama maupun pendukung) belum punya character sheet sampai saya konfirmasi.\n\nPrompt video per shot:\n${ep.shots.map((s) => `SHOT ${s.id}: ${videoPrompt(s)}`).join("\n\n")}`;
       }
+      case "setting": {
+        const locs = assetId ? [assetById(assetId)].filter(Boolean) : S.assets.filter(settingAuto);
+        const zip = assetId ? `kv-setting-${assetId}.zip` : "kv-setting.zip";
+        return `Buat setting reference (plate lokasi) dengan GPT Image berdasarkan KV adegan, untuk seri "${S.project.title}".
+Alat: model gambar OpenAI (GPT Image). Pakai OpenAI API kalau OPENAI_API_KEY sudah ada di environment (edit gambar dengan KV sebagai gambar referensi); kalau tidak ada, pakai ChatGPT lewat Claude in Chrome di akun saya. Jangan memasukkan password, API key, atau data pembayaran; berhenti dan beri tahu saya kalau diminta.
+File KV: ekstrak ${zip} (tombol "⇩ KV acuan (ZIP)" di Aset → Lokasi) → kv-setting/<id lokasi>/<episode>-<adegan>-<n>.jpg.
+Pakai skill drakor-sinematik untuk rasa gambar (cahaya bersumber, palet per suasana, style anchor yang sama).
+
+Langkah:
+1. Lihat semua KV per lokasi. Tulis deskripsi ruang (Bahasa Indonesia) dan frasa kunci lokasi (bahasa Inggris, satu kalimat, ≤ 45 kata, tanpa orang, tanpa logo/teks) HANYA dari yang terlihat di KV.
+2. PRATINJAU: per lokasi, daftar gambar yang akan dibuat, prompt bahasa Inggris, KV acuan, dan perkiraan biaya. Jangan generate sebelum saya konfirmasi.
+3. Per lokasi buat 3 gambar vertikal ${S.project.aspect}: (a) plate wide kosong dari sudut KV utama, (b) sudut balik untuk shot lawan bicara, (c) detail area kerja atau versi waktu lain bila adegan memakainya. Tanpa orang, tanpa teks/logo terbaca; tata ruang, cahaya, dan palet sama dengan KV.
+4. Simpan ke setting/<id lokasi>-1.jpg, -2.jpg, -3.jpg dan kembalikan deskripsi + frasa kunci per lokasi, siap ditempel ke Aset → Lokasi. Saya seret gambarnya ke galeri lokasi.
+
+Lokasi:
+${locs.map((a) => { const g = kvForLocation(a); return `- [${a.id}] ${a.name}: ${a.desc || "-"}${a.lock ? ` | frasa kunci sekarang: ${a.lock}` : ""}\n${g.length ? g.map((x) => `  KV acuan ${x.ep.id} ${x.sc} "${x.heading}": ${x.sheets.length} gambar (${x.sheets.map((sh) => sh.label).join(", ")})`).join("\n") : "  (belum ada adegan dengan KV yang cocok)"}`; }).join("\n") || "- (belum ada lokasi dengan mode otomatis)"}`;
+      }
       case "runninghub": {
         const url = S.project.rhUrl || RH_DEFAULT; const dir = `${id}-runninghub`;
         const noSheet = [...new Set(ep.shots.flatMap((s) => s.cast))].map(assetById).filter((a) => a && a.kind === "Karakter" && a.lock && !sheetsOf(a.id).length).map((a) => a.name);
@@ -544,6 +654,10 @@ Langkah:
 5. KV otomatis: dari klip yang jadi di tiap adegan, ambil satu frame paling representatif (ffmpeg) dan simpan sebagai ${id}-<adegan>-KV.jpg di ${dir}/. Saya seret ke galeri KV dan video ke Produksi di dashboard.
 6. Jangan memasukkan password, kode OTP, atau data pembayaran. Kalau diminta login, top-up, atau persetujuan, berhenti dan beri tahu saya.
 7. ${noSheet.length ? `Lewati shot berisi ${noSheet.join(", ")} (belum ada character sheet) sampai saya konfirmasi.` : "Semua karakter yang tampil sudah punya character sheet."}
+8. Suara konsisten: untuk setiap tokoh yang berbicara dan punya suara acuan, unggah filenya ke slot audio (maksimal 3 per generate) dan tulis di subject_definitions "<Audio n> is the voice-timbre reference for <Subject k> (Sn)". Deskripsi suara tiap tokoh ditulis sama persis di setiap prompt. Kalau ada rekaman dialog per shot di ${dir}/audio/<id shot>.mp3|wav, unggah rekaman itu sebagai audio yang disalin apa adanya (lip-sync ke rekaman), bukan sekadar acuan.
+
+Suara tokoh (unduh dengan tombol ⇩ di Sabrina / Aset → karakter):
+${(() => { const ids = [...new Set(ep.shots.flatMap(speakersOf))]; return ids.map((sid) => { const o = voiceOwner(sid); const nm = sid === "sabrina" ? S.sabrina.name : o.name; const desc = sid === "sabrina" ? S.sabrina.voice : ""; return `- ${nm}: ${voiceMedia(sid) ? voiceFile(sid) : "BELUM ADA SUARA ACUAN — H3 akan mengarang suara, bisa beda antar shot"}${desc ? ` | deskripsi: ${desc}` : ""}`; }).join("\n") || "- (tidak ada dialog)"; })()}
 
 ${head}
 
@@ -551,7 +665,8 @@ Gambar referensi per shot (file akan saya lampirkan/tunjukkan lokasinya; nama se
 ${ep.shots.map((s) => {
           const refs = s.cast.map(assetById).filter((a) => a && a.lock).map((a) => { const sh = sheetNames(a.id); return `${a.name}: ${sh.length ? sh.join(", ") : a.kind === "Karakter" ? "BELUM ADA CHARACTER SHEET" : "tanpa referensi (pakai frasa kunci)"}`; });
           const kv = kvNames(ep, s.scene);
-          return `- SHOT ${s.id} [${s.scene}]: ${refs.join(" · ") || "(tanpa pemeran)"}${kv.length ? ` · KV manual ${s.scene}: ${kv.join(", ")}` : ""}`;
+          const sp = speakersOf(s).map((sid) => `${sid === "sabrina" ? S.sabrina.name : voiceOwner(sid).name} ${voiceMedia(sid) ? `(${voiceFile(sid)})` : "(tanpa acuan)"}`);
+          return `- SHOT ${s.id} [${s.scene}]: ${refs.join(" · ") || "(tanpa pemeran)"}${kv.length ? ` · KV manual ${s.scene}: ${kv.join(", ")}` : ""}${sp.length ? ` · suara: ${sp.join(", ")}` : ""}`;
         }).join("\n")}
 
 Prompt video per shot:
@@ -708,6 +823,7 @@ ${ep.shots.map((s) => `SHOT ${s.id} (${s.dur} dtk): ${videoPrompt(s)}`).join("\n
       <table class="ftable"><tbody>
         <tr><th>Nama</th><td>${tIn("sabrina.name")}</td><th>Nama lengkap</th><td>${tIn("sabrina.fullName")}</td></tr>
         <tr><th>Catchphrase</th><td>${tIn("sabrina.catchphrase")}</td><th>Suara</th><td>${tTa("sabrina.voice")}</td></tr>
+        <tr><th>Suara acuan <small>10–20 dtk, satu sumber tetap · dipakai di setiap generate</small></th><td colspan="3">${voiceBlock("sabrina")}</td></tr>
         <tr><th>Peran</th><td colspan="3">${tTa("sabrina.role")}</td></tr>
         <tr><th>Kepribadian</th><td colspan="3">${tTa("sabrina.personality")}</td></tr>
         <tr><th>Penampilan</th><td>${tTa("sabrina.look", 3)}</td><th>Kostum</th><td>${tTa("sabrina.outfit", 3)}</td></tr>
@@ -737,6 +853,11 @@ ${ep.shots.map((s) => `SHOT ${s.id} (${s.dur} dtk): ${videoPrompt(s)}`).join("\n
               <tr><th>Deskripsi</th><td colspan="3">${tTa(`assets.${i}.desc`)}</td></tr>
               <tr><th>Frasa kunci <small>EN</small></th><td colspan="3">${tTa(`assets.${i}.lock`, 2, "mono", isChar ? "Kosongkan untuk karakter yang hanya suara" : "")}</td></tr>
               <tr><th>Info</th><td colspan="3"><div class="row"><span class="muted mono">id: ${esc(a.id)} · ${nShot} shot</span>${status}</div></td></tr>
+              ${isChar ? `<tr><th>Suara acuan</th><td colspan="3">${voiceBlock(a.id)}</td></tr>` : ""}
+              ${a.kind === "Lokasi" ? (() => { const g = kvForLocation(a); const nKv = sum(g, (x) => x.sheets.length); const auto = settingAuto(a);
+                return `<tr><th>Setting</th><td colspan="3"><div class="row"><div class="seg"><button class="${auto ? "" : "on"}" data-act="setting-mode" data-i="${i}" data-v="manual">Manual</button><button class="${auto ? "on" : ""}" data-act="setting-mode" data-i="${i}" data-v="auto">Otomatis dari KV</button></div>
+                  <small class="muted">${auto ? `${nKv} KV dari ${g.length} adegan cocok${g.length ? ` (${g.map((x) => `${x.ep.id} ${x.sc}`).join(", ")})` : " — beri nama lokasi yang sama dengan judul adegan"}` : "Unggah plate lokasi sendiri di galeri."}</small></div>
+                  ${auto ? `<div class="row" style="margin-top:8px"><button class="btn sm" data-act="setting-kv-zip" data-id="${esc(a.id)}" ${nKv ? "" : "disabled"}>⇩ KV acuan (ZIP)</button>${agentBtn("setting", "Perintah setting (GPT Image)", "sm primary", a.id)}</div>` : ""}</td></tr>`; })() : ""}
             </tbody></table>
             <div class="row" style="justify-content:flex-end">${nSheet ? agentBtn("sheetlock", "Frasa kunci dari sheet", "sm", a.id) : ""}<button class="btn sm danger" data-act="asset-del" data-i="${i}">Hapus ${esc(a.kind.toLowerCase())}</button></div>
           </div>
@@ -1014,7 +1135,8 @@ ${ep.shots.map((s) => `SHOT ${s.id} (${s.dur} dtk): ${videoPrompt(s)}`).join("\n
       <summary><span><b>KV per adegan</b> <small>${auto ? "otomatis" : "manual"} · ${total} gambar · ${sc.length} adegan</small></span><span class="kv-thumbs">${sc.map((x) => { const u = kvFirst(ep, x.sc); return u ? `<img src="${u}" alt="" title="${esc(x.sc)}">` : `<i title="${esc(x.sc)} belum ada KV">${esc(x.sc.replace(/^SC0*/, ""))}</i>`; }).join("")}</span></summary>
       <div class="kv-mode-row">${kvModeSeg(ep)}<small class="muted">${auto
         ? "KV dibuat otomatis: Claude in Chrome menjalankan ref2movie di RunningHub dari character sheet & plate lokasi, lalu mengambil satu frame per adegan sebagai KV. Seret hasilnya ke sini; KV manual tetap boleh ditambahkan sebagai acuan."
-        : "KV dimasukkan manual: seret atau unggah gambar KV ke tiap adegan. KV dipakai sebagai acuan warna, cahaya, dan tata ruang semua shot di adegan itu."}</small>${auto ? agentBtn("runninghub", "Perintah RunningHub (Claude in Chrome)", "sm primary") : ""}</div>
+        : "KV dimasukkan manual: seret atau unggah gambar KV ke tiap adegan. KV dipakai sebagai acuan warna, cahaya, dan tata ruang semua shot di adegan itu."}</small><label class="btn sm" title="Pilih banyak gambar sekaligus. Nama file yang memuat nomor adegan (SC002…) langsung masuk ke adegannya.">⇧ Unggah beberapa KV<input type="file" accept="image/*" multiple data-act="kv-bulk" hidden></label>${auto ? agentBtn("runninghub", "Perintah RunningHub (Claude in Chrome)", "sm primary") : ""}</div>
+      ${kvInbox(ep)}
       <div class="kv-grid">${sc.map((x) => `<div class="kv-scene"><div class="kv-h"><b class="mono">${esc(x.sc)}</b> <span>${esc(x.heading)}</span><small>${ep.shots.filter((s) => s.scene === x.sc).length} shot</small></div>${sheetGallery(kvId(ep, x.sc), true)}</div>`).join("")}</div>
     </details>`;
   }
@@ -1448,6 +1570,12 @@ di Studio tersimpan di film.html, jadi salin dulu film.html lama bila perlu.
       if (!drawerShot) refreshEditor(false);
     } else if (el.dataset.act === "verify") {
       S.sabrina.verified = el.checked; save(); render();
+    } else if (el.dataset.act === "voice-upload" && el.files[0]) {
+      setVoice(el.dataset.id, el.files[0]);
+    } else if (el.dataset.act === "kv-bulk" && el.files.length) {
+      const ep = route().ep; if (ep) addKvBulk(ep, el.files);
+    } else if (el.dataset.kvMove != null) {
+      const ep = route().ep; if (ep) moveKv(ep, KV_INBOX, el.value, el.dataset.kvMove);
     } else if (el.dataset.act === "sheet-upload" && el.files.length) {
       addSheets(el.dataset.id, el.files);
     } else if (el.dataset.assetTier != null) {
@@ -1525,6 +1653,9 @@ di Studio tersimpan di film.html, jadi salin dulu film.html lama bila perlu.
         }
         break;
       case "mode": stopPlay(); boardMode = el.dataset.v; render(); break;
+      case "setting-mode": { const a = S.assets[+el.dataset.i]; if (!a) break; a.settingMode = el.dataset.v === "auto" ? "auto" : "manual"; save(); render(); toast(`${a.name}: setting ${a.settingMode === "auto" ? "otomatis dari KV" : "manual"}`); break; }
+      case "setting-kv-zip": exportKvZip(el.dataset.id); break;
+      case "voice-del": { const o = voiceOwner(el.dataset.id); if (o && confirm(`Hapus suara acuan ${el.dataset.id === "sabrina" ? S.sabrina.name : o.name}?`)) delVoice(el.dataset.id); break; }
       case "kv-mode": { const ep = route().ep; if (!ep) break; ep.kvMode = el.dataset.v === "auto" ? "auto" : "manual"; save(); render(); toast(`${ep.id}: workflow KV ${ep.kvMode === "auto" ? "otomatis (RunningHub)" : "manual"}`); break; }
       case "scene": boardScene = el.dataset.v; render(); break;
       case "shot-open": openShot(ep, el.dataset.id); break;
