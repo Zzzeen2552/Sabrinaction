@@ -21,6 +21,11 @@ Angka di file ini adalah titik mulai. Kalau `selera-tim.md` punya aturan untuk h
 - **Hindari** dentuman dramatis, efek "boing", dan musik tegang yang terus-menerus.
 - Loudness akhir untuk platform sosial sekitar −14 LUFS integrated (sesuaikan target platform).
 
+## Warna
+
+- **Color match ke video acuan** setelah klip disambung: samakan rata-rata dan sebaran tiap kanal R/G/B dengan acuan (kecerahan, kontras, rona). Hasil generate cenderung lebih terang, kontras, dan dingin daripada film; grade ini yang membuatnya terasa sinematik.
+- Grade satu kali untuk seluruh adegan, bukan per klip, supaya sambungan tidak terlihat.
+
 ## Subtitle & teks
 
 - Subtitle mengikuti naskah kata per kata, maksimal 2 baris, tidak menutupi wajah.

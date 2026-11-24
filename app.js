@@ -421,6 +421,8 @@
       props: cast.filter((a) => a.kind === "Properti" && a.lock).map((a) => a.lock)
     };
   }
+  // frasa wajib di setiap prompt gambar/video (permintaan tim, 2026-11-24)
+  const PHOTO_LOCK = "Photoreal, natural skin texture, shot on 35mm film.";
   function firstFramePrompt(shot) {
     if (shot.ff) return shot.ff;
     const p = lockParts(shot);
@@ -430,7 +432,7 @@
     if (p.props.length) out.push(`Props: ${p.props.join("; ")}.`);
     out.push(`Opening frame: ${shot.start || "(isi titik awal shot)"}`.replace(/\.?$/, "."));
     if (shot.scale === "Insert layar") out.push("Keep the phone screen content plain and blank for a post-production overlay.");
-    out.push(`Style: ${S.project.style}. No text, no logo, no watermark.`);
+    out.push(`${PHOTO_LOCK} Style: ${S.project.style}. No text, no logo, no watermark.`);
     return out.join(" ");
   }
   function videoPrompt(shot) {
@@ -452,7 +454,7 @@
     }
     if (shot.sound) out.push(`Sound: ${shot.sound}`.replace(/\.?$/, "."));
     out.push(`End on: ${shot.end || "-"}`.replace(/\.?$/, "."));
-    out.push(`Duration ${shot.dur || 0}s. Style: ${S.project.style}. No subtitles, captions or on-screen text; no logo.`);
+    out.push(`Duration ${shot.dur || 0}s. ${PHOTO_LOCK} Style: ${S.project.style}. No subtitles, captions or on-screen text; no logo.`);
     return out.join(" ");
   }
 
@@ -644,13 +646,13 @@ ${locs.map((a) => { const g = kvForLocation(a); return `- [${a.id}] ${a.name}: $
         const noSheet = [...new Set(ep.shots.flatMap((s) => s.cast))].map(assetById).filter((a) => a && a.kind === "Karakter" && a.lock && !sheetsOf(a.id).length).map((a) => a.name);
         return `Workflow KV otomatis ${id} "${ep.title}" — ref2movie di RunningHub lewat Claude in Chrome (browser saya, akun RunningHub saya sendiri).
 Aplikasi: ${url} (MiniMax H3, gambar referensi → video + suara).
-Tulis ulang setiap prompt dengan skill h3-prompt-writing mode Ref2VA (enam bagian: subject_definitions, summary, retention_analysis, detailed_description, overall_soundscape, non_diegetic_music; label <Subject N>/<Picture N> konsisten; durasi 4–15 dtk per generate). Pakai skill drakor-sinematik untuk rasa adegan: gerak kamera kecil dan termotivasi, akting mikro, tanpa teks di layar. Dialog tetap Bahasa Indonesia kata per kata di dalam <d>[Indonesian] …</d>; VO dengan "says in an off-screen voiceover" dan bibir tertutup. non_diegetic_music: N/A (musik ditambahkan saat editing). Shot yang lebih panjang dari 15 dtk dipecah. Tunjukkan prompt H3 hasil tulis ulang di pratinjau.
+Tulis ulang setiap prompt dengan skill h3-prompt-writing mode Ref2VA (enam bagian: subject_definitions, summary, retention_analysis, detailed_description, overall_soundscape, non_diegetic_music; label <Subject N>/<Picture N> konsisten; durasi 4–15 dtk per generate). Pakai skill drakor-sinematik untuk rasa adegan: gerak kamera kecil dan termotivasi, akting mikro, tanpa teks di layar. Dialog tetap Bahasa Indonesia kata per kata di dalam <d>[Indonesian] …</d>; VO dengan "says in an off-screen voiceover" dan bibir tertutup. non_diegetic_music: N/A (musik ditambahkan saat editing). Gabungkan 3–5 shot berurutan dalam satu adegan menjadi SATU generate 10–15 dtk dengan cut di dalam klip ([Shot 2] At 00:03.000, the shot cuts to…) dan ganti angle (OTS/two-shot → reverse close-up → insert → reaksi), bukan satu shot panjang per generate. Tetapkan posisi kiri/kanan layar tiap tokoh (aturan 180°) dan tulis arah pandang di setiap shot (tokoh yang bicara menatap lawan bicaranya, tidak ke kamera). Akting natural dengan gerak kecil (napas, kedip, melirik) dan reaksi pendengar. Detail mikro-ekspresi wajib (references/mikro-ekspresi.md di skill drakor-sinematik): character lock, continuity lock berisi tangga emosi tiap tokoh per shot, extreme close-up mata/bibir/tangan di momen penting dengan kamera diam, 2–4 tanda fisik kecil per shot, satu pelepasan emosi saja per adegan, dan paragraf negative constraints di akhir detailed_description. Setiap prompt wajib memuat frasa "Photoreal, natural skin texture, shot on 35mm film," di awal deskripsi gaya. Logika properti dan aksi harus masuk akal (siapa memegang apa dan kenapa); cahaya alami dengan sumber jelas (cahaya jendela lembut, kontras rendah, palet redup), bukan cahaya lampu atau iklan. Tokoh pendukung yang tampil (barista, satpam, nasabah) harus jelas berbeda dari tokoh utama minimal di tiga ciri (usia, bentuk wajah/tubuh, rambut atau kumis, kacamata, warna pakaian) dan pakai sheet sendiri bila wajahnya terlihat. Pakai satu gambar acuan lokasi per adegan sebagai <Environment 1> (plate lokasi dari Aset → Lokasi bila ada), dan tulis overall_soundscape dengan cap waktu per suara. Tampilan fotorealistis (tekstur kulit, cahaya bersumber, depth of field lensa sungguhan, grain tipis). Ikuti juga aturan di selera-tim.md skill drakor-sinematik. Unduh hasil per kelompok sebagai ${id}-<shot awal>-<shot akhir>.mp4. Tunjukkan pengelompokan shot dan prompt H3 hasil tulis ulang di pratinjau.
 
 Langkah:
 1. Buka aplikasinya di tab baru. Baca dulu form inputnya (slot gambar referensi, prompt, durasi, rasio, jumlah) dan laporkan field yang ada sebelum mengisi apa pun.
 2. PRATINJAU dulu: tabel shot → gambar referensi yang diunggah → prompt → durasi → perkiraan biaya/kredit dari halaman. Jangan klik Run (立即运行) sebelum saya konfirmasi.
 3. Setelah saya konfirmasi, jalankan SATU shot dulu sebagai uji, tunjukkan hasilnya, lalu lanjut batch setelah saya OK.
-4. Rasio ${S.project.aspect}. Unduh setiap hasil sebagai ${id}-<id shot>.mp4 ke folder ${dir}/ (minta izin saya untuk unduhan pertama).
+4. Rasio ${S.project.aspect}. Unduh setiap hasil ke folder ${dir}/ (minta izin saya untuk unduhan pertama).
 5. KV otomatis: dari klip yang jadi di tiap adegan, ambil satu frame paling representatif (ffmpeg) dan simpan sebagai ${id}-<adegan>-KV.jpg di ${dir}/. Saya seret ke galeri KV dan video ke Produksi di dashboard.
 6. Jangan memasukkan password, kode OTP, atau data pembayaran. Kalau diminta login, top-up, atau persetujuan, berhenti dan beri tahu saya.
 7. ${noSheet.length ? `Lewati shot berisi ${noSheet.join(", ")} (belum ada character sheet) sampai saya konfirmasi.` : "Semua karakter yang tampil sudah punya character sheet."}

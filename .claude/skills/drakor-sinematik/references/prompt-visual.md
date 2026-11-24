@@ -2,6 +2,8 @@
 
 Prompt ditulis dalam bahasa Inggris untuk model generate. Struktur yang konsisten membuat hasil antar shot terasa satu film.
 
+**Frasa wajib di setiap prompt (permintaan tim):** `Photoreal, natural skin texture, shot on 35mm film,` di awal deskripsi gaya. Cahaya ditulis alami dengan sumber jelas (cahaya jendela lembut, kontras rendah, palet redup ala film indie Korea), bukan cahaya lampu atau iklan. Untuk video, lampirkan satu gambar acuan lokasi sebagai `<Environment 1>` dan tulis `overall_soundscape` dengan cap waktu. Lihat juga aturan terbaru di `selera-tim.md`.
+
 ## Struktur prompt first frame
 
 ```
@@ -57,6 +59,13 @@ H3 membuat video sekaligus suara dan punya format prompt sendiri. Kalau targetny
 - `overall_soundscape` diisi ambience nyata (AC, ketikan, antrean). Hening adalah pilihan yang sah.
 - `non_diegetic_music: N/A`. Musik dan OST ditambahkan saat editing supaya bisa ditahan sampai puncak emosi.
 - Style anchor adegan masuk ke deskripsi lingkungan dan cahaya di setiap shot, kalimatnya sama persis.
+
+**Satu generate = satu rangkaian potongan, bukan satu shot.** H3 bisa memotong di dalam satu klip (`[Shot 2] At 00:03.000, the shot cuts to…`), jadi gabungkan 3–5 shot storyboard yang berurutan menjadi satu generate 10–15 detik dengan grammar drakor: OTS/two-shot pembuka → reverse close-up → insert benda → reaksi.
+- **Aturan 180° dan arah pandang:** tetapkan sekali siapa di kiri dan siapa di kanan layar, lalu di setiap shot tulis arah pandangnya: `Sabrina, on screen left, looks screen-right at Boy, just off camera`. Di reverse shot, arah pandang dibalik. Tanpa ini, model sering membuat tokoh bicara ke kamera atau ke ruang kosong.
+- **OTS untuk dialog:** `over-the-shoulder from behind Boy's right shoulder, his shoulder soft in the foreground` membuat arah bicara jelas dan terasa difilmkan sungguhan.
+- **Akting hidup:** setiap shot butuh satu gerak kecil yang spesifik (menarik napas sebelum bicara, melirik ke gelas lalu kembali, ibu jari mengusap sisi gelas) dan pendengar bereaksi. Tulis `natural, understated performance with small breaths and blinks; no posing`.
+- **Realisme:** `photorealistic, shot on a cinema camera with a 50mm lens, natural skin texture with visible pores, slightly imperfect hair, soft motivated window light with gentle shadows, shallow depth of field, subtle film grain`. Hindari `perfect`, `flawless`, `beautiful` yang menarik ke tampilan AI yang licin.
+- Jaga dialog per potongan pendek (satu kalimat per shot) dan beri cut waktu yang cukup untuk kalimat itu (±2,5 kata per detik) plus jeda reaksi.
 
 ## Gerak kamera terukur
 

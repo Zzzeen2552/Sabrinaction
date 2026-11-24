@@ -32,7 +32,7 @@ Kerjakan tahap yang diminta saja, tapi baca bagian tahap sebelumnya bila keputus
 1. **Pahami tokoh dulu.** Sebelum menulis adegan, tulis untuk tiap tokoh di adegan itu: apa yang dia inginkan di adegan ini, apa yang dia sembunyikan, dan satu kebiasaan kecil yang khas (cara memegang tumbler, kata yang sering dia salah ucap). Komedi dan emosi yang natural tumbuh dari sini, bukan dari lelucon yang ditempel.
 2. **Cerita & naskah** → baca `references/naskah-dan-komedi.md`.
 3. **Storyboard & sinematografi** → baca `references/sinematografi-vertikal.md`.
-4. **Prompt gambar & video** → baca `references/prompt-visual.md`.
+4. **Prompt gambar & video** → baca `references/prompt-visual.md`; untuk prompt video yang menampilkan emosi atau reaksi, baca juga `references/mikro-ekspresi.md`.
 5. **Editing & musik** (termasuk paket OpenFilm) → baca `references/editing-dan-musik.md`.
 6. **Cek akhir** dengan daftar di bawah sebelum menyerahkan hasil.
 
