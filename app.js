@@ -529,6 +529,34 @@
           return `- SHOT ${s.id}: ${refs.join(" · ") || "(tanpa pemeran)"}${kv.length ? ` · KV ${s.scene}: ${kv.join(", ")}` : ""}`;
         }).join("\n")}\nJangan generate shot yang karakternya (utama maupun pendukung) belum punya character sheet sampai saya konfirmasi.\n\nPrompt video per shot:\n${ep.shots.map((s) => `SHOT ${s.id}: ${videoPrompt(s)}`).join("\n\n")}`;
       }
+      case "runninghub": {
+        const url = S.project.rhUrl || RH_DEFAULT; const dir = `${id}-runninghub`;
+        const noSheet = [...new Set(ep.shots.flatMap((s) => s.cast))].map(assetById).filter((a) => a && a.kind === "Karakter" && a.lock && !sheetsOf(a.id).length).map((a) => a.name);
+        return `Workflow KV otomatis ${id} "${ep.title}" — ref2movie di RunningHub lewat Claude in Chrome (browser saya, akun RunningHub saya sendiri).
+Aplikasi: ${url} (MiniMax, gambar referensi → video).
+Pakai skill drakor-sinematik untuk merapikan prompt video bila perlu (gerak kamera terukur, style anchor yang sama per adegan, tanpa teks/subtitle/musik).
+
+Langkah:
+1. Buka aplikasinya di tab baru. Baca dulu form inputnya (slot gambar referensi, prompt, durasi, rasio, jumlah) dan laporkan field yang ada sebelum mengisi apa pun.
+2. PRATINJAU dulu: tabel shot → gambar referensi yang diunggah → prompt → durasi → perkiraan biaya/kredit dari halaman. Jangan klik Run (立即运行) sebelum saya konfirmasi.
+3. Setelah saya konfirmasi, jalankan SATU shot dulu sebagai uji, tunjukkan hasilnya, lalu lanjut batch setelah saya OK.
+4. Rasio ${S.project.aspect}. Unduh setiap hasil sebagai ${id}-<id shot>.mp4 ke folder ${dir}/ (minta izin saya untuk unduhan pertama).
+5. KV otomatis: dari klip yang jadi di tiap adegan, ambil satu frame paling representatif (ffmpeg) dan simpan sebagai ${id}-<adegan>-KV.jpg di ${dir}/. Saya seret ke galeri KV dan video ke Produksi di dashboard.
+6. Jangan memasukkan password, kode OTP, atau data pembayaran. Kalau diminta login, top-up, atau persetujuan, berhenti dan beri tahu saya.
+7. ${noSheet.length ? `Lewati shot berisi ${noSheet.join(", ")} (belum ada character sheet) sampai saya konfirmasi.` : "Semua karakter yang tampil sudah punya character sheet."}
+
+${head}
+
+Gambar referensi per shot (file akan saya lampirkan/tunjukkan lokasinya; nama sesuai daftar):
+${ep.shots.map((s) => {
+          const refs = s.cast.map(assetById).filter((a) => a && a.lock).map((a) => { const sh = sheetNames(a.id); return `${a.name}: ${sh.length ? sh.join(", ") : a.kind === "Karakter" ? "BELUM ADA CHARACTER SHEET" : "tanpa referensi (pakai frasa kunci)"}`; });
+          const kv = kvNames(ep, s.scene);
+          return `- SHOT ${s.id} [${s.scene}]: ${refs.join(" · ") || "(tanpa pemeran)"}${kv.length ? ` · KV manual ${s.scene}: ${kv.join(", ")}` : ""}`;
+        }).join("\n")}
+
+Prompt video per shot:
+${ep.shots.map((s) => `SHOT ${s.id} (${s.dur} dtk): ${videoPrompt(s)}`).join("\n\n")}`;
+      }
       case "edit":
         return `Pakai skill OpenFilm (npx skills add openfilm/openfilm; manualnya: npx -y openfilm@latest).\nEdit ${id} "${ep.title}" di folder ${id}-openfilm (hasil Ekspor → Editing di SABRINACTION: film.html 1080×1920, ${S.project.aspect}, target ±${S.project.epSeconds} detik). Rapikan titik potong dan tulis alasannya. Subtitle tetap kata per kata dari naskah (captions/subtitle.vtt). Teks layar ([TEKS]) jadi page overlay di zona aman. Pertahankan kartu penutup "${S.project.cta}". Tambahkan voice-over, musik, dan SFX sebagai clip audio bila filenya ada. Jangan mengubah track yang locked. Cek dengan openfilm look, lalu render dengan target loudness untuk platform ${S.project.platform}. Jangan memakai layanan generate berbayar tanpa konfirmasi saya.\n\nNaskah:\n${ep.script}\n\nShot:\n${shotsText(ep)}`;
       case "review": {
@@ -974,11 +1002,19 @@
   }
 
   let kvOpen = true;
+  // Workflow KV per episode: "manual" (KV diunggah sendiri) atau "auto" (ref2movie RunningHub lewat Claude in Chrome).
+  const RH_DEFAULT = "https://www.runninghub.ai/zh-cn/ai-detail/2123294967665070082";
+  const kvAuto = (ep) => ep && ep.kvMode === "auto";
+  const kvModeSeg = (ep) => `<div class="seg" title="Workflow KV episode ini"><button class="${kvAuto(ep) ? "" : "on"}" data-act="kv-mode" data-v="manual">KV manual</button><button class="${kvAuto(ep) ? "on" : ""}" data-act="kv-mode" data-v="auto">KV otomatis</button></div>`;
   function kvStrip(ep) {
     const sc = scenesOf(ep); if (!sc.length) return "";
     const total = sum(sc, (x) => sheetsOf(kvId(ep, x.sc)).length);
+    const auto = kvAuto(ep);
     return `<details class="card kv-strip" ${kvOpen ? "open" : ""} data-kvstrip="1">
-      <summary><span><b>KV per adegan</b> <small>${total} gambar · ${sc.length} adegan</small></span><span class="kv-thumbs">${sc.map((x) => { const u = kvFirst(ep, x.sc); return u ? `<img src="${u}" alt="" title="${esc(x.sc)}">` : `<i title="${esc(x.sc)} belum ada KV">${esc(x.sc.replace(/^SC0*/, ""))}</i>`; }).join("")}</span></summary>
+      <summary><span><b>KV per adegan</b> <small>${auto ? "otomatis" : "manual"} · ${total} gambar · ${sc.length} adegan</small></span><span class="kv-thumbs">${sc.map((x) => { const u = kvFirst(ep, x.sc); return u ? `<img src="${u}" alt="" title="${esc(x.sc)}">` : `<i title="${esc(x.sc)} belum ada KV">${esc(x.sc.replace(/^SC0*/, ""))}</i>`; }).join("")}</span></summary>
+      <div class="kv-mode-row">${kvModeSeg(ep)}<small class="muted">${auto
+        ? "KV dibuat otomatis: Claude in Chrome menjalankan ref2movie di RunningHub dari character sheet & plate lokasi, lalu mengambil satu frame per adegan sebagai KV. Seret hasilnya ke sini; KV manual tetap boleh ditambahkan sebagai acuan."
+        : "KV dimasukkan manual: seret atau unggah gambar KV ke tiap adegan. KV dipakai sebagai acuan warna, cahaya, dan tata ruang semua shot di adegan itu."}</small>${auto ? agentBtn("runninghub", "Perintah RunningHub (Claude in Chrome)", "sm primary") : ""}</div>
       <div class="kv-grid">${sc.map((x) => `<div class="kv-scene"><div class="kv-h"><b class="mono">${esc(x.sc)}</b> <span>${esc(x.heading)}</span><small>${ep.shots.filter((s) => s.scene === x.sc).length} shot</small></div>${sheetGallery(kvId(ep, x.sc), true)}</div>`).join("")}</div>
     </details>`;
   }
@@ -1078,15 +1114,19 @@
 
   function viewProduksi(ep) {
     const p = prodStats(ep);
+    const auto = kvAuto(ep);
     let html = epHead(ep, "Produksi", "Status generate per shot. Klik status untuk mengganti: belum → antre → jadi → tidak perlu.",
-      `${agentBtn("produce", "Perintah pratinjau batch", "primary")}${agentBtn("edit", "Perintah edit & render")}<button class="btn" data-act="export-openfilm" data-ep="${ep.id}" ${ep.shots.length ? "" : "disabled"} title="ZIP film.html untuk OpenFilm">⇩ Paket OpenFilm</button>`);
+      `${kvModeSeg(ep)}${auto ? agentBtn("runninghub", "Perintah RunningHub", "primary") : agentBtn("produce", "Perintah pratinjau batch", "primary")}${agentBtn("edit", "Perintah edit & render")}<button class="btn" data-act="export-openfilm" data-ep="${ep.id}" ${ep.shots.length ? "" : "disabled"} title="ZIP film.html untuk OpenFilm">⇩ Paket OpenFilm</button>`);
     if (!ep.shots.length) return html + `<div class="card empty"><h3>Belum ada shot</h3><a href="#/ep/${ep.id}/storyboard">Buat storyboard dulu →</a></div>`;
     const by = (k) => { let d = 0, q = 0, t = 0; ep.shots.forEach((s) => { const v = s.prod[k] || "belum"; if (v === "-") return; t++; if (v === "jadi") d++; if (v === "antre") q++; }); return { d, q, t }; };
     html += `<div class="grid g4">
       ${metric("Total job", `${p.done}<small> / ${p.total}</small>`, `${p.queue} sedang antre`, p.total && p.done === p.total ? "ok" : "")}
       ${PROD_KEYS.map(([k, l]) => { const b = by(k); return `<div class="card metric"><div class="k"><span>${l}</span><span>${b.d}/${b.t}</span></div><div class="bar"><i class="b-ok" style="width:${b.t ? (b.d / b.t) * 100 : 0}%"></i><i class="b-warn" style="width:${b.t ? (b.q / b.t) * 100 : 0}%"></i></div><div class="t">${b.q} antre · ${b.t - b.d - b.q} belum</div></div>`; }).join("")}
     </div>
-    <div class="hint section">⚠ Sesuai prinsip <b>drama-skills</b>: generate berbayar baru dijalankan setelah pratinjau batch dikonfirmasi. Dashboard ini tidak memanggil API apa pun — salin perintah pratinjau ke agen, periksa, lalu konfirmasi di sana.</div>
+    ${auto
+      ? `<div class="hint section">⚙ <b>Workflow KV otomatis</b>: salin <b>Perintah RunningHub</b> ke Claude Code yang tersambung ke Claude in Chrome. Agen membuka aplikasi ref2movie MiniMax di RunningHub (akunmu sendiri), menyiapkan pratinjau dan biaya, dan baru menekan Run setelah kamu konfirmasi. Hasil video dan KV per adegan diunduh ke folder <code>${esc(ep.id)}-runninghub/</code>, lalu diseret ke dashboard.
+        <label class="rh-url">Aplikasi RunningHub <input type="text" data-bind="project.rhUrl" value="${esc(S.project.rhUrl || RH_DEFAULT)}" spellcheck="false"></label></div>`
+      : `<div class="hint section">⚠ Sesuai prinsip <b>drama-skills</b>: generate berbayar baru dijalankan setelah pratinjau batch dikonfirmasi. Dashboard ini tidak memanggil API apa pun — salin perintah pratinjau ke agen, periksa, lalu konfirmasi di sana.</div>`}
     <div class="card section table-wrap"><table class="shot-list"><thead><tr><th>#</th><th>Shot</th><th>Dtk</th>${PROD_KEYS.map(([, l]) => `<th>${l}</th>`).join("")}<th></th></tr></thead><tbody>
       ${ep.shots.map((s, i) => `<tr><td class="mono">${esc(s.id)}</td><td><b>${esc(s.title)}</b><br><small>${esc(s.scale)} · ${s.dialog ? "ada dialog" : "tanpa dialog"}</small></td><td>${s.dur}</td>
         ${PROD_KEYS.map(([k]) => { const v = s.prod[k] || "belum"; return `<td><button class="status s-${v === "-" ? "na" : v}" data-act="prod" data-i="${i}" data-k="${k}">${v === "-" ? "tidak perlu" : v}</button></td>`; }).join("")}
@@ -1485,6 +1525,7 @@ di Studio tersimpan di film.html, jadi salin dulu film.html lama bila perlu.
         }
         break;
       case "mode": stopPlay(); boardMode = el.dataset.v; render(); break;
+      case "kv-mode": { const ep = route().ep; if (!ep) break; ep.kvMode = el.dataset.v === "auto" ? "auto" : "manual"; save(); render(); toast(`${ep.id}: workflow KV ${ep.kvMode === "auto" ? "otomatis (RunningHub)" : "manual"}`); break; }
       case "scene": boardScene = el.dataset.v; render(); break;
       case "shot-open": openShot(ep, el.dataset.id); break;
       case "shot-nav": {
