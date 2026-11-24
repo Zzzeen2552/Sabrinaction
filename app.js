@@ -675,7 +675,7 @@ Prompt video per shot:
 ${ep.shots.map((s) => `SHOT ${s.id} (${s.dur} dtk): ${videoPrompt(s)}`).join("\n\n")}`;
       }
       case "edit":
-        return `Pakai skill OpenFilm (npx skills add openfilm/openfilm; manualnya: npx -y openfilm@latest).\nEdit ${id} "${ep.title}" di folder ${id}-openfilm (hasil Ekspor → Editing di SABRINACTION: film.html 1080×1920, ${S.project.aspect}, target ±${S.project.epSeconds} detik). Rapikan titik potong dan tulis alasannya. Subtitle tetap kata per kata dari naskah (captions/subtitle.vtt). Teks layar ([TEKS]) jadi page overlay di zona aman. Pertahankan kartu penutup "${S.project.cta}". Tambahkan voice-over, musik, dan SFX sebagai clip audio bila filenya ada. Jangan mengubah track yang locked. Cek dengan openfilm look, lalu render dengan target loudness untuk platform ${S.project.platform}. Jangan memakai layanan generate berbayar tanpa konfirmasi saya.\n\nNaskah:\n${ep.script}\n\nShot:\n${shotsText(ep)}`;
+        return `Pakai skill OpenFilm (npx skills add openfilm/openfilm; manualnya: npx -y openfilm@latest).\nEdit ${id} "${ep.title}" di folder ${id}-openfilm (hasil Ekspor → Editing di SABRINACTION: film.html 1080×1920, ${S.project.aspect}, target ±${S.project.epSeconds} detik). Rapikan titik potong dan tulis alasannya. Subtitle tetap kata per kata dari naskah (captions/subtitle.vtt). Teks layar ([TEKS]) jadi page overlay di zona aman. Pertahankan kartu penutup "${S.project.cta}". Tambahkan voice-over, musik, dan SFX sebagai clip audio bila filenya ada. Color grade episode: ${gradeOf(ep).name} (grade.svg di paket; setara ffmpeg ${gradeLut(gradeOf(ep))}) — jangan dihapus kecuali saya minta. Jangan mengubah track yang locked. Cek dengan openfilm look, lalu render dengan target loudness untuk platform ${S.project.platform}. Jangan memakai layanan generate berbayar tanpa konfirmasi saya.\n\nNaskah:\n${ep.script}\n\nShot:\n${shotsText(ep)}`;
       case "review": {
         const r = reviewChecks(ep);
         return `/short-drama-review\nReview ${id} "${ep.title}" — naskah, storyboard, dan prompt. Fokus: kekuatan hook 3 detik, kejelasan modus, konsistensi visual ${S.sabrina.name}, kesinambungan antar shot (arah pandang, posisi, properti), dan kepatuhan pesan keamanan perbankan.\n\n${head}\n\nTemuan otomatis dashboard:\n${r.auto.filter((c) => c.level !== "ok").map((c) => `- ${c.text}`).join("\n") || "- (tidak ada)"}\n\nNaskah:\n${ep.script}\n\nShot:\n${shotsText(ep)}\n\nKembalikan daftar masalah: lokasi · bukti · dampak · usulan perbaikan. Jangan mengubah dokumen langsung.`;
@@ -1251,6 +1251,7 @@ ${ep.shots.map((s) => `SHOT ${s.id} (${s.dur} dtk): ${videoPrompt(s)}`).join("\n
       ? `<div class="hint section">⚙ <b>Workflow KV otomatis</b>: salin <b>Perintah RunningHub</b> ke Claude Code yang tersambung ke Claude in Chrome. Agen membuka aplikasi ref2movie MiniMax di RunningHub (akunmu sendiri), menyiapkan pratinjau dan biaya, dan baru menekan Run setelah kamu konfirmasi. Hasil video dan KV per adegan diunduh ke folder <code>${esc(ep.id)}-runninghub/</code>, lalu diseret ke dashboard.
         <label class="rh-url">Aplikasi RunningHub <input type="text" data-bind="project.rhUrl" value="${esc(S.project.rhUrl || RH_DEFAULT)}" spellcheck="false"></label></div>`
       : `<div class="hint section">⚠ Sesuai prinsip <b>drama-skills</b>: generate berbayar baru dijalankan setelah pratinjau batch dikonfirmasi. Dashboard ini tidak memanggil API apa pun — salin perintah pratinjau ke agen, periksa, lalu konfirmasi di sana.</div>`}
+    ${gradeCard(ep)}
     <div class="card section table-wrap"><table class="shot-list"><thead><tr><th>#</th><th>Shot</th><th>Dtk</th>${PROD_KEYS.map(([, l]) => `<th>${l}</th>`).join("")}<th></th></tr></thead><tbody>
       ${ep.shots.map((s, i) => `<tr><td class="mono">${esc(s.id)}</td><td><b>${esc(s.title)}</b><br><small>${esc(s.scale)} · ${s.dialog ? "ada dialog" : "tanpa dialog"}</small></td><td>${s.dur}</td>
         ${PROD_KEYS.map(([k]) => { const v = s.prod[k] || "belum"; return `<td><button class="status s-${v === "-" ? "na" : v}" data-act="prod" data-i="${i}" data-k="${k}">${v === "-" ? "tidak perlu" : v}</button></td>`; }).join("")}
@@ -1360,17 +1361,54 @@ if (!window.filmHost) { const t0 = performance.now(); const l = () => { film.fra
 `;
   }
   async function fetchBytes(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return new Uint8Array(await r.arrayBuffer()); }
+  // ---------- preset color grade ----------
+  // Tiap preset = transfer linear per kanal (out = a·in + b, skala 0–255). Dipakai sama persis di pratinjau dashboard
+  // (SVG feColorMatrix), di paket OpenFilm (grade.svg → ikut ter-render), dan untuk ffmpeg (lutrgb).
+  const GRADES = [
+    { id: "netral", name: "Netral", desc: "Tanpa grade, warna asli hasil generate", m: [1, 0, 1, 0, 1, 0] },
+    { id: "indie", name: "Kafe indie Korea", desc: "Hangat redup, kontras rendah, hitam terangkat (dari video acuan)", m: [0.6647, 23.64, 0.7331, 10.01, 0.694, 4.21] },
+    { id: "pagi", name: "Pagi hangat", desc: "Keemasan lembut untuk rumah, kos, momen hangat", m: [0.92, 18, 0.86, 12, 0.74, 6] },
+    { id: "kantor", name: "Kantor biru bersih", desc: "Sejuk dan rapi, nuansa biru BRI", m: [0.88, 6, 0.93, 10, 0.98, 22] },
+    { id: "malam", name: "Malam tenang", desc: "Lebih gelap dan dingin untuk adegan malam", m: [0.78, 0, 0.72, 4, 0.74, 16] },
+    { id: "pastel", name: "Kenangan pastel", desc: "Pudar, kontras sangat rendah untuk kilas balik", m: [0.62, 70, 0.62, 64, 0.64, 66] },
+  ];
+  const gradeOf = (ep) => GRADES.find((g) => g.id === ((ep && ep.grade) || "netral")) || GRADES[0];
+  const gradeMatrix = (g) => { const [ar, br, ag, bg, ab, bb] = g.m; const f = (x) => (x / 255).toFixed(4); return `${ar} 0 0 0 ${f(br)}  0 ${ag} 0 0 ${f(bg)}  0 0 ${ab} 0 ${f(bb)}  0 0 0 1 0`; };
+  const gradeLut = (g) => { const [ar, br, ag, bg, ab, bb] = g.m; return `lutrgb=r='clip(${ar}*val+${br},0,255)':g='clip(${ag}*val+${bg},0,255)':b='clip(${ab}*val+${bb},0,255)'`; };
+  const gradeSvg = (g) => `<svg xmlns="http://www.w3.org/2000/svg"><filter id="grade" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${gradeMatrix(g)}"/></filter></svg>\n`;
+  // contoh warna untuk ubin preset bila episode belum punya gambar: kulit, kayu, dinding, kemeja biru
+  const GRADE_SWATCH = [[214, 170, 140], [150, 105, 70], [232, 228, 218], [120, 150, 200]];
+  const gradeApply = (g, [r, gg, b]) => { const [ar, br, ag, bg, ab, bb] = g.m; const c = (v) => Math.max(0, Math.min(255, Math.round(v))); return `rgb(${c(ar * r + br)},${c(ag * gg + bg)},${c(ab * b + bb)})`; };
+  function ensureGradeDefs() {
+    if (document.getElementById("grade-defs")) return;
+    document.body.insertAdjacentHTML("beforeend", `<svg id="grade-defs" width="0" height="0" style="position:absolute" aria-hidden="true">${GRADES.map((g) => `<filter id="gr-${g.id}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${gradeMatrix(g)}"/></filter>`).join("")}</svg>`);
+  }
+  function gradeSample(ep) {
+    for (const s of ep.shots) { const m = media(ep, s, "img"); if (m) return m.url; }
+    for (const x of scenesOf(ep)) { const u = kvFirst(ep, x.sc); if (u) return u; }
+    return "";
+  }
+  function gradeCard(ep) {
+    ensureGradeDefs();
+    const cur = gradeOf(ep); const u = gradeSample(ep);
+    return `<div class="card section grade-card"><div class="row" style="justify-content:space-between;align-items:baseline"><h3 style="margin:0">Color grade <small class="muted">${esc(cur.name)}</small></h3><small class="muted">Dipakai di paket OpenFilm dan ikut ter-render ke MP4. ${u ? "Pratinjau memakai gambar episode ini." : "Belum ada gambar episode; pratinjau memakai contoh warna."}</small></div>
+      <div class="grade-grid">${GRADES.map((g) => `<button class="grade-tile ${g.id === cur.id ? "on" : ""}" data-act="grade" data-v="${g.id}" title="${esc(g.desc)}">
+        ${u ? `<span class="gt-img" style="background-image:url('${u}');filter:url(#gr-${g.id})"></span>` : `<span class="gt-sw">${GRADE_SWATCH.map((c) => `<i style="background:${gradeApply(g, c)}"></i>`).join("")}</span>`}
+        <b>${esc(g.name)}</b><small>${esc(g.desc)}</small></button>`).join("")}</div></div>`;
+  }
+
   async function buildOpenFilm(ep) {
     const files = []; const clips = []; const subs = []; const slates = []; const kvDone = new Map(); const warn = [];
     const W = 1080, H = 1920; let t = 0, nVid = 0, nImg = 0, nKv = 0, nSlate = 0;
+    const grade = gradeOf(ep); const gcls = grade.id === "netral" ? "" : " graded";
     const box = `left: 0px; top: 0px; width: ${W}px; height: ${H}px`;
     for (const s of ep.shots) {
       const dur = t3(Math.max(0.5, +s.dur || 0)); const at = t3(t); const id = `shot-${s.id}`;
       const vid = media(ep, s, "vid"), img = media(ep, s, "img");
       let clip = "";
       try {
-        if (vid) { const f = `media/${ep.id}-${s.id}.${extOf(vid.type, vid.name)}`; files.push({ name: f, data: await fetchBytes(vid.url) }); clip = `<video id="${id}" src="${f}#t=0,${dur}" at="${at}" class="shot" style="${box}"></video>`; nVid++; }
-        else if (img) { const f = `media/${ep.id}-${s.id}.${extOf(img.type, img.name)}`; files.push({ name: f, data: await fetchBytes(img.url) }); clip = `<img id="${id}" src="${f}#t=0,${dur}" at="${at}" class="shot still" style="${box}">`; nImg++; }
+        if (vid) { const f = `media/${ep.id}-${s.id}.${extOf(vid.type, vid.name)}`; files.push({ name: f, data: await fetchBytes(vid.url) }); clip = `<video id="${id}" src="${f}#t=0,${dur}" at="${at}" class="shot${gcls}" style="${box}"></video>`; nVid++; }
+        else if (img) { const f = `media/${ep.id}-${s.id}.${extOf(img.type, img.name)}`; files.push({ name: f, data: await fetchBytes(img.url) }); clip = `<img id="${id}" src="${f}#t=0,${dur}" at="${at}" class="shot still${gcls}" style="${box}">`; nImg++; }
       } catch (e) { warn.push(`media shot ${s.id} tidak terbaca`); }
       if (!clip) {
         const sh = sheetsOf(kvId(ep, s.scene)).find((x) => shMedia(x));
@@ -1380,7 +1418,7 @@ if (!window.filmHost) { const t0 = performance.now(); const l = () => { film.fra
           try { files.push({ name: f, data: await fetchBytes(m.url) }); } catch (e) { f = null; warn.push(`KV ${s.scene} tidak terbaca`); }
           kvDone.set(sh.key, f);
         }
-        if (f) { clip = `<img id="${id}" src="${f}#t=0,${dur}" at="${at}" class="shot kv" style="${box}">`; nKv++; }
+        if (f) { clip = `<img id="${id}" src="${f}#t=0,${dur}" at="${at}" class="shot kv${gcls}" style="${box}">`; nKv++; }
         else {
           const f2 = `pages/${id}.html`;
           files.push({ name: f2, data: ofCard({ kicker: `${ep.id} · ${s.scene} · shot ${s.id}`, title: s.title || `Shot ${s.id}`, sub: [s.scale, s.move].filter(Boolean).join(" · "), note: s.action || "" }) });
@@ -1427,7 +1465,7 @@ if (!window.filmHost) { const t0 = performance.now(); const l = () => { film.fra
   .shot { object-fit: cover; }
   .kv { animation: kv-zoom var(--clip-length) linear both; }
   @keyframes kv-zoom { from { scale: 1; } to { scale: 1.08; } }
-</style>
+${gcls ? `  /* color grade: ${grade.name} (grade.svg) */\n  .graded { filter: url(grade.svg#grade); }\n` : ""}</style>
 </head>
 <body>
 <section title="Nomor shot (sembunyikan sebelum render final)" hidden>
@@ -1443,12 +1481,14 @@ ${clips.join("\n")}
 </html>
 `;
     files.unshift({ name: "film.html", data: film });
+    if (gcls) files.push({ name: "grade.svg", data: gradeSvg(grade) });
     const dir = `${ep.id}-openfilm`;
     files.push({ name: "BACA-SAYA.txt", data: `${S.project.title} — ${ep.id} "${ep.title}"
 Diekspor dari SABRINACTION untuk OpenFilm (https://github.com/openfilm/openfilm).
 
 Durasi ${fmtSec(total)} (${ep.shots.length} shot + kartu penutup ${endLen} dtk), 1080×1920.
 Isi gambar: ${nVid} video · ${nImg} first frame · ${nKv} KV adegan (zoom pelan) · ${nSlate} kartu slate (belum ada media).
+Color grade: ${grade.name}${gcls ? ` (grade.svg, ikut ter-render). Setara ffmpeg: -vf "${gradeLut(grade)}"` : " (tanpa grade)"}.
 ${warn.length ? `Peringatan: ${warn.join("; ")}\n` : ""}
 Butuh Node 22.2+ dan ffmpeg. Ekstrak ZIP ini, lalu di dalam folder ${dir}:
 
@@ -1657,6 +1697,7 @@ di Studio tersimpan di film.html, jadi salin dulu film.html lama bila perlu.
       case "mode": stopPlay(); boardMode = el.dataset.v; render(); break;
       case "setting-mode": { const a = S.assets[+el.dataset.i]; if (!a) break; a.settingMode = el.dataset.v === "auto" ? "auto" : "manual"; save(); render(); toast(`${a.name}: setting ${a.settingMode === "auto" ? "otomatis dari KV" : "manual"}`); break; }
       case "setting-kv-zip": exportKvZip(el.dataset.id); break;
+      case "grade": { const ep = route().ep; if (!ep) break; ep.grade = el.dataset.v; save(); render(); toast(`${ep.id}: color grade ${gradeOf(ep).name}`); break; }
       case "voice-del": { const o = voiceOwner(el.dataset.id); if (o && confirm(`Hapus suara acuan ${el.dataset.id === "sabrina" ? S.sabrina.name : o.name}?`)) delVoice(el.dataset.id); break; }
       case "kv-mode": { const ep = route().ep; if (!ep) break; ep.kvMode = el.dataset.v === "auto" ? "auto" : "manual"; save(); render(); toast(`${ep.id}: workflow KV ${ep.kvMode === "auto" ? "otomatis (RunningHub)" : "manual"}`); break; }
       case "scene": boardScene = el.dataset.v; render(); break;

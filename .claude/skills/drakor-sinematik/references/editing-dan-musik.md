@@ -25,6 +25,7 @@ Angka di file ini adalah titik mulai. Kalau `selera-tim.md` punya aturan untuk h
 
 - **Color match ke video acuan** setelah klip disambung: samakan rata-rata dan sebaran tiap kanal R/G/B dengan acuan (kecerahan, kontras, rona). Hasil generate cenderung lebih terang, kontras, dan dingin daripada film; grade ini yang membuatnya terasa sinematik.
 - Grade satu kali untuk seluruh adegan, bukan per klip, supaya sambungan tidak terlihat.
+- Dashboard punya preset grade per episode (Produksi → Color grade): Netral, Kafe indie Korea, Pagi hangat, Kantor biru bersih, Malam tenang, Kenangan pastel. Preset ikut masuk paket OpenFilm sebagai `grade.svg` dan ter-render ke MP4; padanan ffmpeg-nya tertulis di BACA-SAYA. Pilih preset sesuai suasana adegan (lihat palet per suasana di `sinematografi-vertikal.md`).
 
 ## Subtitle & teks
 
